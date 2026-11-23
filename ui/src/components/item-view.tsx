@@ -1,10 +1,11 @@
-import { Copy as CopyIcon, ExternalLink, Pencil, Star, Trash2 } from 'lucide-react'
+import { Copy as CopyIcon, ExternalLink, MoreVertical, Pencil, Star, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { api, type Item } from '@/lib/api'
 import { TYPES, toHref } from '@/lib/schema'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { chipClass, type TagColors } from '@/lib/tags'
 import { ItemIcon } from './item-icon'
 import { CopyBtn, Row, SecretRow, TotpRow } from './secret'
@@ -76,25 +77,30 @@ export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag, colo
             ))}
           </div>
         </div>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => onEdit(it)}><Pencil /> Edit</Button>
-        <Button variant="outline" size="sm" onClick={async () => {
-          await api('POST', `/items/${id}/favorite`, { favorite: !it.favorite })
-          setIt({ ...it, favorite: !it.favorite })
-          onChanged()
-        }}>
-          <Star className={it.favorite ? 'fill-amber-400 text-amber-500' : ''} /> {it.favorite ? 'Unfavorite' : 'Favorite'}
-        </Button>
-        <Button variant="outline" size="sm" onClick={async () => {
-          try {
-            const c = await api<Item>('POST', `/items/${id}/duplicate`)
-            toast.success('Item duplicated', { description: `“${c.name}” was created.` })
+        <div className="flex shrink-0 items-center gap-1">
+          <Button variant="outline" size="icon-sm" aria-label="Edit" title="Edit" onClick={() => onEdit(it)}><Pencil /></Button>
+          <Button variant="outline" size="icon-sm" aria-label={it.favorite ? 'Unfavorite' : 'Favorite'} title={it.favorite ? 'Unfavorite' : 'Favorite'} onClick={async () => {
+            await api('POST', `/items/${id}/favorite`, { favorite: !it.favorite })
+            setIt({ ...it, favorite: !it.favorite })
             onChanged()
-            onOpen(c.id)
-          } catch (e: any) { toast.error('Could not duplicate item', { description: e.message }) }
-        }}><CopyIcon /> Duplicate</Button>
-        <Button variant="destructive" size="sm" onClick={() => setDel(true)}><Trash2 /> Delete</Button>
+          }}>
+            <Star className={it.favorite ? 'fill-amber-400 text-amber-500' : ''} />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label="More" title="More" />}><MoreVertical /></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={async () => {
+                try {
+                  const c = await api<Item>('POST', `/items/${id}/duplicate`)
+                  toast.success('Item duplicated', { description: `“${c.name}” was created.` })
+                  onChanged()
+                  onOpen(c.id)
+                } catch (e: any) { toast.error('Could not duplicate item', { description: e.message }) }
+              }}><CopyIcon /> Duplicate</DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onClick={() => setDel(true)}><Trash2 /> Delete</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       {sections.map((s, i) => (
         <section key={i} className="space-y-2">
