@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const version = "0.1.1"
+const version = "0.1.2"
 
 func home() string {
 	if h := os.Getenv("SAKU_HOME"); h != "" {

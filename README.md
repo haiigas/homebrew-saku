@@ -8,7 +8,6 @@ Your vault is one file on your machine.
 ```
 brew tap haiigas/homebrew-saku
 brew install saku
-mkcert -install        # once, for a trusted https://localhost
 brew services start saku
 ```
 
@@ -55,7 +54,7 @@ The popup has four tabs: **Favorites**, **All items**, **Generator**, **Settings
 
 Nothing is filled unless you click, except with the auto-fill setting.
 The session token lives in `storage.session` and is dropped when the browser closes.
-Chrome rejects self-signed certificates for extensions, so run `mkcert -install` once.
+Chrome rejects self-signed certificates for extensions. `saku serve` runs `mkcert -install` for you (it may ask for your password once). If that failed, run `mkcert -install` yourself, then `brew services restart saku`.
 
 ## Security
 

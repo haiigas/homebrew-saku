@@ -20,6 +20,10 @@ import (
 // Regenerated when expiring or when a local IP / host is missing from it.
 func selfSigned(dir string, hosts []string) (tls.Certificate, error) {
 	crt, key := filepath.Join(dir, "tls.pem"), filepath.Join(dir, "tls-key.pem")
+	// idempotent: trusts the mkcert CA once, no-op afterwards. Failure is fine (cert is still issued, browser just warns).
+	if mk, err := exec.LookPath("mkcert"); err == nil {
+		_ = exec.Command(mk, "-install").Run()
+	}
 	var ips []net.IP
 	if addrs, err := net.InterfaceAddrs(); err == nil {
 		for _, a := range addrs {
@@ -46,7 +50,7 @@ func selfSigned(dir string, hosts []string) (tls.Certificate, error) {
 			}
 		}
 	}
-	// prefer mkcert (already trusted by the browser if `mkcert -install` was run)
+	// prefer mkcert (its CA is trusted via `mkcert -install`, run above)
 	if mk, err := exec.LookPath("mkcert"); err == nil {
 		args := []string{"-cert-file", crt, "-key-file", key, "localhost", "127.0.0.1", "::1"}
 		for _, ip := range ips {

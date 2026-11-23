@@ -1,7 +1,7 @@
 class Saku < Formula
   desc "Local encrypted password manager with a web UI"
   homepage "https://github.com/haiigas/homebrew-saku"
-  url "https://github.com/haiigas/homebrew-saku/archive/refs/tags/v0.1.1.tar.gz"
+  url "https://github.com/haiigas/homebrew-saku/archive/refs/tags/v0.1.2.tar.gz"
   sha256 "5d18c709a8421a98111c5d4e16def285644c4853d715ae7b9d3f2a0c97a04dfd"
   license "MIT"
 
@@ -23,7 +23,8 @@ class Saku < Formula
   def caveats
     <<~EOS
       Open https://localhost:7878 (run `saku serve` or `brew services start saku`).
-      For a trusted HTTPS cert, run once: mkcert -install
+      saku runs `mkcert -install` itself for a trusted HTTPS cert (it may ask for your password once).
+      If the browser still warns, run it manually: mkcert -install
       Chrome extension: chrome://extensions > Developer mode > Load unpacked >
         #{opt_pkgshare}/extension
       Your encrypted vault lives in ~/.config/saku/vault.db
@@ -37,6 +38,6 @@ class Saku < Formula
   end
 
   test do
-    assert_match "saku 0.1.1", shell_output("#{bin}/saku --version")
+    assert_match "saku 0.1.2", shell_output("#{bin}/saku --version")
   end
 end
