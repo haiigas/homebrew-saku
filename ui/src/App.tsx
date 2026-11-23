@@ -1,4 +1,4 @@
-import { Dices, Lock, Layers, MoreVertical, Pencil, Plus, Search, Settings as Cog, Star, Tag, ArrowLeft } from 'lucide-react'
+import { Dices, Lock, Layers, Pencil, Plus, Search, Settings as Cog, Star, Tag, ArrowLeft } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api, type Item, type ItemType, type Status } from '@/lib/api'
@@ -126,12 +126,7 @@ function Vault({ st, setSt, refresh }: { st: Status; setSt: (s: Status) => void;
                 {c ? <span className={`mx-[5px] size-2.5 shrink-0 ${c.dot}`} /> : <Tag className="size-4 shrink-0" />}
                 <span className="truncate">{t}</span>
               </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Edit tag ${t}`} className="shrink-0" />}><MoreVertical /></DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setEditTag(t)}><Pencil /> Rename / color</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button variant="ghost" size="icon-sm" aria-label={`Edit tag ${t}`} title="Edit tag" className="shrink-0" onClick={() => setEditTag(t)}><Pencil /></Button>
             </div>
           )
         })}</nav>
