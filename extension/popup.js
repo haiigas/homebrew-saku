@@ -207,13 +207,13 @@ const SCHEMA = {
     ['urls', 'Websites', 'urls', 'Websites'], ['fields', 'Custom fields', 'custom', 'Custom fields'], ['notes', 'Notes', 'area', 'Notes']] },
   bank: { label: 'Bank account', fields: [
     ['bank_name', 'Bank name', 'text', 'Details'], ['holder', 'Full name', 'text'], ['account_number', 'Account number', 'text'], ['swift', 'Shift / SWIFT code', 'text'], ['pin', 'PIN code', 'secret'],
-    ['branch_name', 'Branch name', 'text', 'Branch'], ['branch_phone', 'Contact number', 'text'], ['branch_address', 'Address', 'area'], ['notes', 'Notes', 'area', 'Notes']] },
+    ['branch_name', 'Branch name', 'text', 'Branch'], ['branch_phone', 'Contact number', 'text'], ['branch_address', 'Address', 'area'], ['fields', 'Custom fields', 'custom', 'Custom fields'], ['notes', 'Notes', 'area', 'Notes']] },
   card: { label: 'Payment card', fields: [
     ['holder', 'Card holder name', 'text', 'Details'], ['number', 'Card number', 'text'], ['expires', 'Expires', 'text', '', 0, 'MM/YY'], ['cvc', 'CVC', 'secret'], ['pin', 'PIN', 'secret'],
-    ['bank_name', 'Bank name', 'text', 'Bank'], ['bank_url', 'Bank website', 'text'], ['notes', 'Notes', 'area', 'Notes']] },
+    ['bank_name', 'Bank name', 'text', 'Bank'], ['bank_url', 'Bank website', 'text'], ['fields', 'Custom fields', 'custom', 'Custom fields'], ['notes', 'Notes', 'area', 'Notes']] },
   wifi: { label: 'Wireless router', fields: [
     ['ssid', 'Network name (SSID)', 'text', 'Network'], ['password', 'Wi-Fi password', 'secret', '', 1],
-    ['ip', 'IP address', 'text', 'Router admin', 0, '192.168.1.1'], ['admin_user', 'Admin username', 'text'], ['admin_password', 'Admin password', 'secret', '', 1], ['notes', 'Notes', 'area', 'Notes']] },
+    ['ip', 'IP address', 'text', 'Router admin', 0, '192.168.1.1'], ['admin_user', 'Admin username', 'text'], ['admin_password', 'Admin password', 'secret', '', 1], ['fields', 'Custom fields', 'custom', 'Custom fields'], ['notes', 'Notes', 'area', 'Notes']] },
 }
 
 function secretInput(get, set, withGen) {

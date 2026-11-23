@@ -113,7 +113,10 @@ export function TotpRow({ label, secret }: { label: string; secret: string }) {
           <span className={`text-xs tabular-nums ${state.left <= 5 ? 'text-destructive' : 'text-muted-foreground'}`}>{state.left}s</span>
         </span>
       ) : (
-        <span className="text-muted-foreground">…</span>
+        <span className="flex items-center gap-3 text-muted-foreground">
+          <span className="font-mono text-lg tracking-wider">000 000</span>
+          <span className="text-xs tabular-nums">0s</span>
+        </span>
       )}
     </Row>
   )
