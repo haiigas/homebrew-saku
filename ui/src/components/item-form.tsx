@@ -11,13 +11,13 @@ import { Generator } from './generator'
 import { spaced, useTotp } from './secret'
 import { TagsInput } from './tags-input'
 
-function SecretInput({ value, onChange, onGen, id }: { value: string; onChange: (v: string) => void; onGen: () => void; id?: string }) {
+function SecretInput({ value, onChange, onGen, id }: { value: string; onChange: (v: string) => void; onGen?: () => void; id?: string }) {
   const [show, setShow] = useState(false)
   return (
     <div className="flex gap-1">
       <Input id={id} type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} autoComplete="off" spellCheck={false} className="font-mono" />
       <Button type="button" variant="outline" size="icon" aria-label={show ? 'Hide' : 'Reveal'} onClick={() => setShow(!show)}>{show ? <EyeOff /> : <Eye />}</Button>
-      <Button type="button" variant="outline" size="icon" aria-label="Generate password" title="Generate password" onClick={onGen}><Dices /></Button>
+      {onGen && <Button type="button" variant="outline" size="icon" aria-label="Generate password" title="Generate password" onClick={onGen}><Dices /></Button>}
     </div>
   )
 }
@@ -39,6 +39,11 @@ export function ItemForm({ item, startType, tags, onSaved, onCancel }: { item?: 
   const [nameErr, setNameErr] = useState('')
   const [err, setErr] = useState('')
   const T = TYPES[type]
+  const groups: { title?: string; fields: Field[] }[] = []
+  for (const f of T.fields) {
+    if (f.section || !groups.length) groups.push({ title: f.section, fields: [] })
+    groups[groups.length - 1].fields.push(f)
+  }
 
   const set = (k: string, v: any) => setD((x) => ({ ...x, [k]: v }))
   const changeType = (t: ItemType) => { setType(t); setD(blank(t)) }
@@ -62,14 +67,13 @@ export function ItemForm({ item, startType, tags, onSaved, onCancel }: { item?: 
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 
-  const input = (f: Field, i: number) => {
+  const input = (f: Field, title?: string) => {
     const id = `f-${f.key}`
     const v = d[f.key]
     return (
       <div key={f.key} className="space-y-1.5">
-        {f.section && i > 0 && <h3 className="pt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">{f.section}</h3>}
-        <Label htmlFor={id}>{f.label}</Label>
-        {f.kind === 'secret' ? <SecretInput id={id} value={v} onChange={(x) => set(f.key, x)} onGen={() => setGen(() => (x: string) => set(f.key, x))} />
+        <Label htmlFor={id} className={f.label === title ? 'sr-only' : ''}>{f.label}</Label>
+        {f.kind === 'secret' ? <SecretInput id={id} value={v} onChange={(x) => set(f.key, x)} onGen={f.gen ? () => setGen(() => (x: string) => set(f.key, x)) : undefined} />
         : f.kind === 'totp' ? <><Input id={id} value={v} onChange={(e) => set(f.key, e.target.value)} placeholder={f.placeholder} autoComplete="off" spellCheck={false} className="font-mono" /><TotpPreview secret={v} /></>
         : f.kind === 'area' ? <Textarea id={id} rows={f.key === 'notes' ? 4 : 2} value={v} onChange={(e) => set(f.key, e.target.value)} />
         : f.kind === 'urls' ? (
@@ -130,7 +134,12 @@ export function ItemForm({ item, startType, tags, onSaved, onCancel }: { item?: 
         <Label>Tags</Label>
         <TagsInput value={tgs} onChange={setTgs} suggestions={tags} />
       </div>
-      {T.fields.map(input)}
+      {groups.map((g, i) => (
+        <section key={i} className="space-y-4 border-t border-dashed pt-4">
+          {g.title && <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{g.title}</h3>}
+          {g.fields.map((f) => input(f, g.title))}
+        </section>
+      ))}
       <FieldError>{err}</FieldError>
       <div className="flex gap-2 pt-2">
         <Button type="submit" disabled={busy}>Save</Button>

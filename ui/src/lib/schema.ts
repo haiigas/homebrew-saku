@@ -2,7 +2,7 @@ import { CreditCard, KeyRound, Landmark, Wifi, type LucideIcon } from 'lucide-re
 import type { ItemType } from './api'
 
 export type Kind = 'text' | 'secret' | 'totp' | 'area' | 'urls' | 'custom' | 'link'
-export type Field = { key: string; label: string; kind: Kind; section?: string; placeholder?: string }
+export type Field = { key: string; label: string; kind: Kind; section?: string; placeholder?: string; gen?: boolean }
 
 export const TYPES: Record<ItemType, { label: string; plural: string; icon: LucideIcon; fields: Field[] }> = {
   login: {
@@ -11,11 +11,11 @@ export const TYPES: Record<ItemType, { label: string; plural: string; icon: Luci
     icon: KeyRound,
     fields: [
       { key: 'username', label: 'Username', kind: 'text', section: 'Details' },
-      { key: 'password', label: 'Password', kind: 'secret' },
+      { key: 'password', label: 'Password', kind: 'secret', gen: true },
       { key: 'totp', label: '2FA key', kind: 'totp', placeholder: 'Base32 secret or otpauth:// URI' },
-      { key: 'urls', label: 'Websites', kind: 'urls' },
-      { key: 'fields', label: 'Custom fields', kind: 'custom' },
-      { key: 'notes', label: 'Notes', kind: 'area' },
+      { key: 'urls', label: 'Websites', kind: 'urls', section: 'Websites' },
+      { key: 'fields', label: 'Custom fields', kind: 'custom', section: 'Custom fields' },
+      { key: 'notes', label: 'Notes', kind: 'area', section: 'Notes' },
     ],
   },
   bank: {
@@ -44,9 +44,9 @@ export const TYPES: Record<ItemType, { label: string; plural: string; icon: Luci
       { key: 'expires', label: 'Expires', kind: 'text', placeholder: 'MM/YY' },
       { key: 'cvc', label: 'CVC', kind: 'secret' },
       { key: 'pin', label: 'PIN', kind: 'secret' },
-      { key: 'bank_name', label: 'Bank name', kind: 'text' },
+      { key: 'bank_name', label: 'Bank name', kind: 'text', section: 'Bank' },
       { key: 'bank_url', label: 'Bank website', kind: 'link' },
-      { key: 'notes', label: 'Notes', kind: 'area' },
+      { key: 'notes', label: 'Notes', kind: 'area', section: 'Notes' },
     ],
   },
   wifi: {
@@ -55,10 +55,10 @@ export const TYPES: Record<ItemType, { label: string; plural: string; icon: Luci
     icon: Wifi,
     fields: [
       { key: 'ssid', label: 'Network name (SSID)', kind: 'text', section: 'Network' },
-      { key: 'password', label: 'Wi-Fi password', kind: 'secret' },
-      { key: 'ip', label: 'IP address', kind: 'link', placeholder: '192.168.1.1' },
-      { key: 'admin_user', label: 'Admin username', kind: 'text', section: 'Admin' },
-      { key: 'admin_password', label: 'Admin password', kind: 'secret' },
+      { key: 'password', label: 'Wi-Fi password', kind: 'secret', gen: true },
+      { key: 'ip', label: 'IP address', kind: 'link', placeholder: '192.168.1.1', section: 'Router admin' },
+      { key: 'admin_user', label: 'Admin username', kind: 'text' },
+      { key: 'admin_password', label: 'Admin password', kind: 'secret', gen: true },
       { key: 'notes', label: 'Notes', kind: 'area', section: 'Notes' },
     ],
   },

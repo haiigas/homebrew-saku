@@ -22,19 +22,22 @@ export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag }: { 
   const d = it.data ?? {}
   const sections: { title?: string; rows: React.ReactNode[] }[] = []
   const row = (s: string | undefined, n: React.ReactNode) => {
-    if (s || !sections.length) sections.push({ title: s, rows: [] })
+    if (!sections.length || (s && s !== sections[sections.length - 1].title)) sections.push({ title: s, rows: [] })
     sections[sections.length - 1].rows.push(n)
   }
 
+  let cur = ''
   for (const f of T.fields) {
     const v = d[f.key]
     const k = f.key
+    if (f.section) cur = f.section
+    const lab = f.label === cur ? '' : f.label
     if (f.kind === 'urls') {
       const urls: string[] = (v ?? []).filter((u: string) => u.trim())
       urls.forEach((u, i) => {
         const href = toHref(u)
         row(f.section, (
-          <Row key={k + i} label={i === 0 ? f.label : ''} actions={<>{href && <a href={href} target="_blank" rel="noopener noreferrer" aria-label="Open" title="Open"><Button variant="ghost" size="icon-sm" tabIndex={-1} render={<span />}><ExternalLink /></Button></a>}<CopyBtn value={u} label="URL" /></>}>
+          <Row key={k + i} label="" actions={<>{href && <a href={href} target="_blank" rel="noopener noreferrer" aria-label="Open" title="Open"><Button variant="ghost" size="icon-sm" tabIndex={-1} render={<span />}><ExternalLink /></Button></a>}<CopyBtn value={u} label="URL" /></>}>
             {u}
           </Row>
         ))
@@ -47,7 +50,7 @@ export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag }: { 
     } else if (typeof v === 'string' && v) {
       if (f.kind === 'secret') row(f.section, <SecretRow key={k} label={f.label} value={v} />)
       else if (f.kind === 'totp') row(f.section, <TotpRow key={k} label={f.label} secret={v} />)
-      else if (f.kind === 'area') row(f.section, <Row key={k} label={f.label}><span className="whitespace-pre-wrap">{v}</span></Row>)
+      else if (f.kind === 'area') row(f.section, <Row key={k} label={lab}><span className="whitespace-pre-wrap">{v}</span></Row>)
       else {
         const href = f.kind === 'link' ? toHref(v) : null
         row(f.section, (
