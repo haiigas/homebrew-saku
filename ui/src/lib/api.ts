@@ -9,6 +9,7 @@ export type Item = {
   created: number
   updated: number
   sub?: string
+  site?: string
   data?: Data
 }
 export type Status = { initialized: boolean; unlocked: boolean; autolock: number }

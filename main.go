@@ -36,7 +36,7 @@ const usage = `saku ` + version + ` — local encrypted password manager
 usage:
   saku serve [--port 7878] [--bind 0.0.0.0] [--host name]... [--http]
                        start the web UI (HTTPS by default)
-  config: ~/.config/saku/config  (port, bind, http, host = a.dev, b.dev; flags win)
+  config: ~/.config/saku/config  (port, bind, http, host = a.dev, b.dev; favicons = false; flags win)
   saku backup <file>   copy the (still encrypted) vault to <file>
   saku doctor          check paths and dependencies
   saku -h | --help
@@ -127,7 +127,7 @@ func serve(args []string) {
 	if err != nil {
 		die("%v", err)
 	}
-	s := &Server{v: v, hosts: map[string]bool{}, tls: !*plain}
+	s := &Server{v: v, hosts: map[string]bool{}, tls: !*plain, icons: cfg["favicons"] != "false"}
 	for _, h := range hosts {
 		s.hosts[h] = true
 	}

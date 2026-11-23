@@ -4,11 +4,12 @@ import { toast } from 'sonner'
 import { api, type Item } from '@/lib/api'
 import { TYPES, toHref } from '@/lib/schema'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { chipClass, type TagColors } from '@/lib/tags'
+import { ItemIcon } from './item-icon'
 import { CopyBtn, Row, SecretRow, TotpRow } from './secret'
 
-export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag }: { id: string; onEdit: (it: Item) => void; onChanged: () => void; onDeleted: () => void; onOpen: (id: string) => void; onTag: (t: string) => void }) {
+export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag, colors }: { id: string; onEdit: (it: Item) => void; onChanged: () => void; onDeleted: () => void; onOpen: (id: string) => void; onTag: (t: string) => void; colors: TagColors }) {
   const [it, setIt] = useState<Item | null>(null)
   const [del, setDel] = useState(false)
 
@@ -65,15 +66,15 @@ export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag }: { 
   return (
     <div className="mx-auto max-w-2xl space-y-5 p-4 sm:p-8">
       <div className="flex items-start gap-3">
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted"><T.icon className="size-5" /></div>
+        <ItemIcon item={it} box="size-11 rounded-lg" icon="size-5" />
         <div className="min-w-0 flex-1">
-          <h2 className="break-words text-xl font-semibold">{it.name}</h2>
-          <div className="text-sm text-muted-foreground">{T.label}</div>
-          {it.tags.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {it.tags.map((t) => <button key={t} onClick={() => onTag(t)}><Badge variant="secondary">{t}</Badge></button>)}
-            </div>
-          )}
+          <h2 className="break-words text-lg font-semibold leading-tight">{it.name}</h2>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-sm text-muted-foreground">{T.label}</span>
+            {it.tags.map((t) => (
+              <button key={t} onClick={() => onTag(t)} className={`h-5 border px-1.5 text-xs font-medium ${chipClass(colors, t)}`}>{t}</button>
+            ))}
+          </div>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">

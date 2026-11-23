@@ -1,8 +1,9 @@
-import { Dices, Lock, Layers, Plus, Search, Settings as Cog, Star, Tag, ArrowLeft } from 'lucide-react'
+import { Dices, Lock, Layers, MoreVertical, Pencil, Plus, Search, Settings as Cog, Star, Tag, ArrowLeft } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api, type Item, type ItemType, type Status } from '@/lib/api'
 import { TYPE_KEYS, TYPES } from '@/lib/schema'
+import { TAG_COLORS, type TagColor, type TagColors } from '@/lib/tags'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -12,8 +13,10 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Auth } from '@/components/auth'
 import { Generator } from '@/components/generator'
 import { ItemForm } from '@/components/item-form'
+import { ItemIcon } from '@/components/item-icon'
 import { ItemView } from '@/components/item-view'
 import { Settings } from '@/components/settings'
+import { TagDialog } from '@/components/tag-dialog'
 
 type Filter = { kind: 'all' } | { kind: 'fav' } | { kind: 'type'; t: ItemType } | { kind: 'tag'; tag: string }
 type Pane = { mode: 'none' } | { mode: 'view'; id: string } | { mode: 'new'; t: ItemType } | { mode: 'edit'; item: Item }
@@ -53,9 +56,12 @@ function Vault({ st, setSt, refresh }: { st: Status; setSt: (s: Status) => void;
   const [pane, setPane] = useState<Pane>({ mode: 'none' })
   const [gen, setGen] = useState(false)
   const [cfg, setCfg] = useState(false)
+  const [colors, setColors] = useState<TagColors>({})
+  const [editTag, setEditTag] = useState<string | null>(null)
 
   const load = useCallback(() => api<Item[]>('GET', '/items').then(setItems).catch((e) => toast.error('Could not load items', { description: e.message })), [])
-  useEffect(() => { load() }, [load])
+  const loadColors = useCallback(() => api<TagColors>('GET', '/tags').then(setColors).catch(() => {}), [])
+  useEffect(() => { load(); loadColors() }, [load, loadColors])
 
   // user activity keeps the vault awake (server only sees API calls)
   const lastPing = useRef(0)
@@ -111,7 +117,24 @@ function Vault({ st, setSt, refresh }: { st: Status; setSt: (s: Status) => void;
         <div className="mt-4 mb-1 px-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Types</div>
         <nav className="space-y-0.5">{TYPE_KEYS.map((t) => nav(TYPES[t].plural, { kind: 'type', t }, (() => { const I = TYPES[t].icon; return <I className="size-4" /> })(), counts(t)))}</nav>
         {allTags.length > 0 && <div className="mt-4 mb-1 px-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Tags</div>}
-        <nav className="-mr-1 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">{allTags.map((t) => nav(t, { kind: 'tag', tag: t }, <Tag className="size-4" />))}</nav>
+        <nav className="-mr-1 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">{allTags.map((t) => {
+          const c = TAG_COLORS[colors[t.toLowerCase()] as TagColor]
+          const f: Filter = { kind: 'tag', tag: t }
+          return (
+            <div key={t} className={`group flex items-center rounded-lg hover:bg-muted ${same(filter, f) ? 'bg-muted font-medium' : ''}`}>
+              <button onClick={() => { setFilter(f); setPane({ mode: 'none' }) }} className="flex h-9 min-w-0 flex-1 items-center gap-2 px-2.5 text-left text-sm">
+                {c ? <span className={`mx-[5px] size-2.5 shrink-0 ${c.dot}`} /> : <Tag className="size-4 shrink-0" />}
+                <span className="truncate">{t}</span>
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Edit tag ${t}`} className="shrink-0" />}><MoreVertical /></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditTag(t)}><Pencil /> Rename / color</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )
+        })}</nav>
         <div className="mt-2 space-y-0.5 border-t pt-2">
           <Button variant="ghost" className="w-full justify-start" onClick={() => setGen(true)}><Dices /> Generator</Button>
           <Button variant="ghost" className="w-full justify-start" onClick={() => setCfg(true)}><Cog /> Settings</Button>
@@ -149,11 +172,10 @@ function Vault({ st, setSt, refresh }: { st: Status; setSt: (s: Status) => void;
           {shown.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">{items.length ? 'No matches.' : 'Nothing here yet. Press + to add your first item.'}</div>
           ) : shown.map((i) => {
-            const I = TYPES[i.type].icon
             const active = pane.mode === 'view' && pane.id === i.id
             return (
               <button key={i.id} onClick={() => setPane({ mode: 'view', id: i.id })} className={`flex w-full items-center gap-3 border-b px-3 py-2.5 text-left hover:bg-muted/50 ${active ? 'bg-muted' : ''}`}>
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted"><I className="size-4" /></div>
+                <ItemIcon item={i} box="size-9 rounded-lg" icon="size-4" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{i.name}</div>
                   <div className="truncate text-xs text-muted-foreground">{i.sub || TYPES[i.type].label}</div>
@@ -170,11 +192,15 @@ function Vault({ st, setSt, refresh }: { st: Status; setSt: (s: Status) => void;
           <button onClick={() => setPane({ mode: 'none' })} className="flex items-center gap-1 px-4 pt-3 text-sm text-muted-foreground md:hidden"><ArrowLeft className="size-4" /> Back</button>
         )}
         {pane.mode === 'none' && <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Select an item</div>}
-        {pane.mode === 'view' && <ItemView key={pane.id} id={pane.id} onChanged={load} onOpen={(id) => setPane({ mode: 'view', id })} onDeleted={() => { setPane({ mode: 'none' }); load() }} onEdit={(it) => setPane({ mode: 'edit', item: it })} onTag={(t) => { setFilter({ kind: 'tag', tag: t }); setPane({ mode: 'none' }) }} />}
-        {pane.mode === 'new' && <ItemForm key={'n' + pane.t} startType={pane.t} tags={allTags} onCancel={() => setPane({ mode: 'none' })} onSaved={(it) => { load(); setPane({ mode: 'view', id: it.id }) }} />}
-        {pane.mode === 'edit' && <ItemForm key={pane.item.id} item={pane.item} startType={pane.item.type} tags={allTags} onCancel={() => setPane({ mode: 'view', id: pane.item.id })} onSaved={(it) => { load(); setPane({ mode: 'view', id: it.id }) }} />}
+        {pane.mode === 'view' && <ItemView key={pane.id} id={pane.id} onChanged={load} onOpen={(id) => setPane({ mode: 'view', id })} onDeleted={() => { setPane({ mode: 'none' }); load() }} onEdit={(it) => setPane({ mode: 'edit', item: it })} colors={colors} onTag={(t) => { setFilter({ kind: 'tag', tag: t }); setPane({ mode: 'none' }) }} />}
+        {pane.mode === 'new' && <ItemForm key={'n' + pane.t} startType={pane.t} tags={allTags} colors={colors} onCancel={() => setPane({ mode: 'none' })} onSaved={(it) => { load(); setPane({ mode: 'view', id: it.id }) }} />}
+        {pane.mode === 'edit' && <ItemForm key={pane.item.id} item={pane.item} startType={pane.item.type} tags={allTags} colors={colors} onCancel={() => setPane({ mode: 'view', id: pane.item.id })} onSaved={(it) => { load(); setPane({ mode: 'view', id: it.id }) }} />}
       </main>
 
+      <TagDialog tag={editTag} colors={colors} onClose={() => setEditTag(null)} onSaved={(o, n) => {
+        if (filter.kind === 'tag' && filter.tag.toLowerCase() === o.toLowerCase()) setFilter({ kind: 'tag', tag: n })
+        load(); loadColors()
+      }} />
       <Generator open={gen} onClose={() => setGen(false)} />
       <Settings open={cfg} onClose={() => setCfg(false)} autolock={st.autolock} onAutolock={(n) => setSt({ ...st, autolock: n })} onImported={load} />
     </div>

@@ -131,3 +131,10 @@
 [data-sonner-toast] {
   box-shadow: none !important;
 }
+
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}

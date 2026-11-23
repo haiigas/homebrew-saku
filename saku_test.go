@@ -120,3 +120,41 @@ func TestHostMatch(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateTag(t *testing.T) {
+	v, _ := openVault(filepath.Join(t.TempDir(), "v.db"))
+	if _, err := v.Setup("hunter2hunter2"); err != nil {
+		t.Fatal(err)
+	}
+	d := json.RawMessage(`{}`)
+	a, _ := v.Create(Item{Type: "login", Name: "a", Tags: []string{"Dev", "x"}, Data: d})
+	b, _ := v.Create(Item{Type: "login", Name: "b", Tags: []string{"work", "dev"}, Data: d})
+	if err := v.UpdateTag("dev", "Work", "blue"); err != nil {
+		t.Fatal(err)
+	}
+	ga, _ := v.Get(a.ID)
+	gb, _ := v.Get(b.ID)
+	if len(ga.Tags) != 2 || ga.Tags[0] != "Work" || len(gb.Tags) != 1 {
+		t.Fatal("rename/merge wrong", ga.Tags, gb.Tags)
+	}
+	if v.TagColors()["work"] != "blue" || v.UpdateTag("x", "y", "nope") == nil {
+		t.Fatal("color")
+	}
+}
+
+func TestPublicOnly(t *testing.T) {
+	for ip, ok := range map[string]bool{"93.184.216.34": true, "127.0.0.1": false, "192.168.1.1": false, "10.0.0.5": false,
+		"100.100.147.16": false, "169.254.169.254": false, "::1": false, "fd00::1": false, "0.0.0.0": false} {
+		if (publicOnly("tcp", ip+":443", nil) == nil) != ok {
+			t.Errorf("publicOnly(%s) want %v", ip, ok)
+		}
+	}
+	if hostOf("github.com/login") != "github.com" || hostOf("https://A.b.io:8080/x") != "a.b.io" || hostOf("") != "" {
+		t.Error("hostOf")
+	}
+	for _, h := range []string{"localhost", "a b.com", "x.com/../y", "192.168.1.1:80"} {
+		if _, _, ok := favicon(h); ok {
+			t.Errorf("favicon accepted %q", h)
+		}
+	}
+}

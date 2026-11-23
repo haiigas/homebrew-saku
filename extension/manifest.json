@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Saku Password Manager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fill logins from your local saku vault.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtZTa48ZPz2Bd4SCxqYTuh6azAYkBwtry7AdbVQw7y3F78VDHcR7A2sE9hnyug/+NRnlrySWQSoaato3Z25p0Dkhm35Tf1zGO53sB9xfxKEkcNcptLCpmNHMuhOFoDZ1GkelOCYCJbW/wk9b60QdtffADvfpDQgPQOtZWgd7r+JZMiZSX9RcRA4nOw/5rbMP2zXgI8WsjB0alK+UvvJ7QsvbbVAMQakqGVhK1hz/9C5CO3vQP6eTJhFlow/5LMMkuDsZnTayNHmF450W+lU+D7BwewUJqx6rLYe8OUY2kM9zHbz2MlBLjvzL9UZ3YIkuCxoCyw3qf1QhwWLscAqcWHwIDAQAB",
   "action": { "default_title": "Saku", "default_popup": "popup.html", "default_icon": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" } },

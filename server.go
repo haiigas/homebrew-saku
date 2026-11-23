@@ -21,16 +21,22 @@ const cookieName = "saku_session"
 // extOrigin is the browser extension in ./extension (ID is fixed by "key" in its manifest).
 const extOrigin = "chrome-extension://npfiijknlecpfdggffkejocdebbodipl"
 
-// hostMatch: saved URL (or bare domain) covers host, including subdomains.
-func hostMatch(saved, host string) bool {
+// hostOf: hostname of a saved URL or bare domain ("" if unusable).
+func hostOf(saved string) string {
+	saved = strings.TrimSpace(saved)
 	if !strings.Contains(saved, "://") {
 		saved = "https://" + saved
 	}
-	u, err := url.Parse(strings.TrimSpace(saved))
+	u, err := url.Parse(saved)
 	if err != nil {
-		return false
+		return ""
 	}
-	h := strings.ToLower(u.Hostname())
+	return strings.ToLower(u.Hostname())
+}
+
+// hostMatch: saved URL (or bare domain) covers host, including subdomains.
+func hostMatch(saved, host string) bool {
+	h := hostOf(saved)
 	return h != "" && (h == host || strings.HasSuffix(host, "."+h))
 }
 
@@ -38,6 +44,7 @@ type Server struct {
 	v     *Vault
 	hosts map[string]bool
 	tls   bool
+	icons bool // fetch site favicons (config: favicons = false to disable)
 }
 
 func (s *Server) hostOK(h string) bool {
@@ -109,6 +116,11 @@ func (s *Server) handler() http.Handler {
 		s.login(w, r)
 		reply(w, map[string]any{})
 	})
+	mux.HandleFunc("POST /api/signout", func(w http.ResponseWriter, r *http.Request) {
+		s.v.EndSession(token(r))
+		http.SetCookie(w, &http.Cookie{Name: cookieName, Path: "/", MaxAge: -1})
+		reply(w, map[string]any{})
+	})
 	api("POST /api/lock", false, func(w http.ResponseWriter, r *http.Request) {
 		s.v.Lock()
 		http.SetCookie(w, &http.Cookie{Name: cookieName, Path: "/", MaxAge: -1})
@@ -117,7 +129,24 @@ func (s *Server) handler() http.Handler {
 
 	api("GET /api/items", true, func(w http.ResponseWriter, r *http.Request) {
 		items, err := s.v.List()
+		if !s.icons {
+			for i := range items {
+				items[i].Site = ""
+			}
+		}
 		respond(w, items, err)
+	})
+	api("GET /api/icon", true, func(w http.ResponseWriter, r *http.Request) {
+		b, t, ok := favicon(r.URL.Query().Get("host"))
+		if !s.icons || !ok {
+			w.Header().Set("Cache-Control", "private, max-age=3600")
+			fail(w, 404, "no icon")
+			return
+		}
+		w.Header().Set("Content-Type", t)
+		w.Header().Set("Cache-Control", "private, max-age=86400")
+		w.Header().Set("Content-Security-Policy", "sandbox")
+		_, _ = w.Write(b)
 	})
 	api("POST /api/items", true, func(w http.ResponseWriter, r *http.Request) {
 		var it Item
@@ -130,6 +159,9 @@ func (s *Server) handler() http.Handler {
 	})
 	api("GET /api/items/{id}", true, func(w http.ResponseWriter, r *http.Request) {
 		it, err := s.v.Get(r.PathValue("id"))
+		if !s.icons {
+			it.Site = ""
+		}
 		respond(w, it, err)
 	})
 	api("PUT /api/items/{id}", true, func(w http.ResponseWriter, r *http.Request) {
@@ -209,6 +241,14 @@ func (s *Server) handler() http.Handler {
 			}
 		}
 		reply(w, out)
+	})
+	api("GET /api/tags", true, func(w http.ResponseWriter, r *http.Request) { reply(w, s.v.TagColors()) })
+	api("POST /api/tags", true, func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ Old, Name, Color string }
+		if !body(w, r, &in, 1<<10) {
+			return
+		}
+		respond(w, map[string]any{}, s.v.UpdateTag(in.Old, in.Name, in.Color))
 	})
 	api("POST /api/ping", true, func(w http.ResponseWriter, r *http.Request) { reply(w, map[string]any{}) })
 	api("POST /api/autolock", true, func(w http.ResponseWriter, r *http.Request) {

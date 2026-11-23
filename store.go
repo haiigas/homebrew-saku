@@ -34,6 +34,8 @@ type Item struct {
 	Created  int64           `json:"created"`
 	Updated  int64           `json:"updated"`
 	Sub      string          `json:"sub,omitempty"`
+	Totp     bool            `json:"totp,omitempty"`
+	Site     string          `json:"site,omitempty"` // host for the favicon
 	Data     json.RawMessage `json:"data,omitempty"`
 }
 
@@ -236,6 +238,13 @@ func (v *Vault) Lock() {
 	v.smu.Unlock()
 }
 
+// EndSession drops one session; the vault stays unlocked for others.
+func (v *Vault) EndSession(t string) {
+	v.smu.Lock()
+	delete(v.sessions, t)
+	v.smu.Unlock()
+}
+
 func (v *Vault) NewSession() string {
 	t := hex.EncodeToString(randBytes(32))
 	v.smu.Lock()
@@ -295,6 +304,24 @@ func subtitle(t string, d map[string]any) string {
 	return ""
 }
 
+// siteOf: host whose favicon represents the item (first website of a login, bank website of a card).
+func siteOf(t string, d map[string]any) string {
+	switch t {
+	case "login":
+		if u, _ := d["urls"].([]any); len(u) > 0 {
+			for _, x := range u {
+				if s, _ := x.(string); hostOf(s) != "" {
+					return hostOf(s)
+				}
+			}
+		}
+	case "card":
+		s, _ := d["bank_url"].(string)
+		return hostOf(s)
+	}
+	return ""
+}
+
 func cleanItem(it *Item) error {
 	it.Name = strings.TrimSpace(it.Name)
 	if !itemTypes[it.Type] || it.Name == "" || len(it.Name) > 200 {
@@ -348,6 +375,9 @@ func (v *Vault) List() ([]Item, error) {
 				var d map[string]any
 				_ = json.Unmarshal(pt, &d)
 				it.Sub = subtitle(it.Type, d)
+				t, _ := d["totp"].(string)
+				it.Totp = t != ""
+				it.Site = siteOf(it.Type, d)
 			}
 			out = append(out, it)
 		}
@@ -368,6 +398,9 @@ func (v *Vault) Get(id string) (Item, error) {
 			return errors.New("decrypt failed")
 		}
 		i.Data = pt
+		var d map[string]any
+		_ = json.Unmarshal(pt, &d)
+		i.Site = siteOf(i.Type, d)
 		it = i
 		return nil
 	})
@@ -474,7 +507,7 @@ func (v *Vault) All() ([]Item, error) {
 		if err != nil {
 			return nil, err
 		}
-		it.Sub = ""
+		it.Sub, it.Site = "", ""
 		out = append(out, it)
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Created < out[j].Created })
@@ -489,4 +522,75 @@ func (v *Vault) Backup(dst string) error {
 		return err
 	}
 	return os.Chmod(dst, 0o600)
+}
+
+var tagColors = map[string]bool{"": true, "red": true, "orange": true, "amber": true, "green": true, "teal": true, "blue": true, "violet": true, "pink": true}
+
+// TagColors returns lowercase tag -> color key. Tag names are plaintext, so colors are too.
+func (v *Vault) TagColors() map[string]string {
+	m := map[string]string{}
+	if b := v.meta("tagcolors"); b != nil {
+		_ = json.Unmarshal(b, &m)
+	}
+	return m
+}
+
+// UpdateTag renames a tag on every item (case-insensitive, merging into an existing tag) and sets its color.
+func (v *Vault) UpdateTag(old, name, color string) error {
+	name = strings.TrimSpace(name)
+	if old == "" || name == "" || len(name) > 40 || !tagColors[color] {
+		return fmt.Errorf("%w: tag", errInput)
+	}
+	cm := v.TagColors() // read before the tx: single DB connection
+	return v.withKey(func([]byte) error {
+		tx, err := v.db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		rows, err := tx.Query(`SELECT id,tags FROM items`)
+		if err != nil {
+			return err
+		}
+		type upd struct{ id, tags string }
+		var ups []upd
+		for rows.Next() {
+			var id, raw string
+			var tags []string
+			if err := rows.Scan(&id, &raw); err != nil {
+				rows.Close()
+				return err
+			}
+			_ = json.Unmarshal([]byte(raw), &tags)
+			hit, seen, out := false, map[string]bool{}, []string{}
+			for _, t := range tags {
+				if strings.EqualFold(t, old) {
+					t, hit = name, true
+				}
+				if k := strings.ToLower(t); !seen[k] {
+					seen[k] = true
+					out = append(out, t)
+				}
+			}
+			if hit {
+				b, _ := json.Marshal(out)
+				ups = append(ups, upd{id, string(b)})
+			}
+		}
+		rows.Close()
+		for _, u := range ups {
+			if _, err := tx.Exec(`UPDATE items SET tags=? WHERE id=?`, u.tags, u.id); err != nil {
+				return err
+			}
+		}
+		delete(cm, strings.ToLower(old))
+		if color != "" {
+			cm[strings.ToLower(name)] = color
+		}
+		b, _ := json.Marshal(cm)
+		if _, err := tx.Exec(`INSERT INTO meta(k,v) VALUES('tagcolors',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v`, b); err != nil {
+			return err
+		}
+		return tx.Commit()
+	})
 }

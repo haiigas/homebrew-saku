@@ -29,7 +29,7 @@ function TotpPreview({ secret }: { secret: string }) {
   return state ? <p className="text-xs text-muted-foreground">Current code: <span className="font-mono">{spaced(state.code)}</span> ({state.left}s)</p> : null
 }
 
-export function ItemForm({ item, startType, tags, onSaved, onCancel }: { item?: Item; startType: ItemType; tags: string[]; onSaved: (it: Item) => void; onCancel: () => void }) {
+export function ItemForm({ item, startType, tags, colors, onSaved, onCancel }: { item?: Item; startType: ItemType; tags: string[]; colors?: Record<string, string>; onSaved: (it: Item) => void; onCancel: () => void }) {
   const [type, setType] = useState<ItemType>(item?.type ?? startType)
   const [name, setName] = useState(item?.name ?? '')
   const [tgs, setTgs] = useState<string[]>(item?.tags ?? [])
@@ -132,7 +132,7 @@ export function ItemForm({ item, startType, tags, onSaved, onCancel }: { item?: 
       </div>
       <div className="space-y-1.5">
         <Label>Tags</Label>
-        <TagsInput value={tgs} onChange={setTgs} suggestions={tags} />
+        <TagsInput value={tgs} onChange={setTgs} suggestions={tags} colors={colors} />
       </div>
       {groups.map((g, i) => (
         <section key={i} className="space-y-4 border-t border-dashed pt-4">

@@ -2,8 +2,9 @@ import { X } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { chipClass, type TagColors } from '@/lib/tags'
 
-export function TagsInput({ value, onChange, suggestions }: { value: string[]; onChange: (v: string[]) => void; suggestions: string[] }) {
+export function TagsInput({ value, onChange, suggestions, colors = {} }: { value: string[]; onChange: (v: string[]) => void; suggestions: string[]; colors?: TagColors }) {
   const [txt, setTxt] = useState('')
   const add = (raw: string) => {
     const t = raw.trim().replace(/,$/, '').trim()
@@ -16,7 +17,7 @@ export function TagsInput({ value, onChange, suggestions }: { value: string[]; o
       {value.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {value.map((t) => (
-            <Badge key={t} variant="secondary" className="gap-1">
+            <Badge key={t} variant="outline" className={`gap-1 ${chipClass(colors, t)}`}>
               {t}
               <button type="button" aria-label={`Remove ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>
                 <X className="size-3" />
