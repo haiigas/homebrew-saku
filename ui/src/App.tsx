@@ -95,7 +95,7 @@ function Vault({ st, setSt, refresh }: { st: Status; setSt: (s: Status) => void;
   const detail = pane.mode !== 'none'
 
   const nav = (label: string, f: Filter, icon: React.ReactNode, n?: number) => (
-    <button key={label} onClick={() => { setFilter(f); setPane({ mode: 'none' }) }} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-muted ${same(filter, f) ? 'bg-muted font-medium' : ''}`}>
+    <button key={label} onClick={() => { setFilter(f); setPane({ mode: 'none' }) }} className={`flex w-full items-center gap-2 h-9 rounded-lg px-2.5 text-left text-sm hover:bg-muted ${same(filter, f) ? 'bg-muted font-medium' : ''}`}>
       {icon}<span className="flex-1 truncate">{label}</span>{n !== undefined && <span className="text-xs text-muted-foreground">{n}</span>}
     </button>
   )
