@@ -54,7 +54,7 @@ function Vault({ st, setSt, refresh }: { st: Status; setSt: (s: Status) => void;
   const [gen, setGen] = useState(false)
   const [cfg, setCfg] = useState(false)
 
-  const load = useCallback(() => api<Item[]>('GET', '/items').then(setItems).catch((e) => toast.error(e.message)), [])
+  const load = useCallback(() => api<Item[]>('GET', '/items').then(setItems).catch((e) => toast.error('Could not load items', { description: e.message })), [])
   useEffect(() => { load() }, [load])
 
   // user activity keeps the vault awake (server only sees API calls)

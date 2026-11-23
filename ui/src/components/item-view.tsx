@@ -14,7 +14,7 @@ export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag }: { 
 
   useEffect(() => {
     setIt(null)
-    api<Item>('GET', `/items/${id}`).then(setIt).catch((e) => toast.error(e.message))
+    api<Item>('GET', `/items/${id}`).then(setIt).catch((e) => toast.error('Could not load item', { description: e.message }))
   }, [id])
 
   if (!it) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>
@@ -88,10 +88,10 @@ export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag }: { 
         <Button variant="outline" size="sm" onClick={async () => {
           try {
             const c = await api<Item>('POST', `/items/${id}/duplicate`)
-            toast.success('Duplicated')
+            toast.success('Item duplicated', { description: `“${c.name}” was created.` })
             onChanged()
             onOpen(c.id)
-          } catch (e: any) { toast.error(e.message) }
+          } catch (e: any) { toast.error('Could not duplicate item', { description: e.message }) }
         }}><CopyIcon /> Duplicate</Button>
         <Button variant="destructive" size="sm" onClick={() => setDel(true)}><Trash2 /> Delete</Button>
       </div>
@@ -111,7 +111,7 @@ export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag }: { 
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={async () => {
-              try { await api('DELETE', `/items/${id}`); toast.success('Deleted'); onDeleted() } catch (e: any) { toast.error(e.message) }
+              try { await api('DELETE', `/items/${id}`); toast.success('Item deleted', { description: `“${it.name}” was removed.` }); onDeleted() } catch (e: any) { toast.error('Could not delete item', { description: e.message }) }
             }}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

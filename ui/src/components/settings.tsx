@@ -34,14 +34,14 @@ export function Settings({ open, onClose, autolock, onAutolock, onImported }: { 
         <div className="space-y-3">
           <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Auto-lock</h3>
           <Label htmlFor="al">Lock after inactivity</Label>
-          <NativeSelect id="al" value={autolock} className="w-full" onChange={(e) => run('lock', async () => { await api('POST', '/autolock', { seconds: +e.target.value }); onAutolock(+e.target.value); toast.success('Saved') })}>
+          <NativeSelect id="al" value={autolock} className="w-full" onChange={(e) => run('lock', async () => { await api('POST', '/autolock', { seconds: +e.target.value }); onAutolock(+e.target.value); toast.success('Auto-lock updated', { description: `Vault locks ${+e.target.value ? 'after ' + LOCKS.find(([s]) => s === +e.target.value)?.[1] + ' of inactivity' : 'never'}.` }) })}>
             {LOCKS.map(([s, l]) => <option key={s} value={s}>{l}</option>)}
           </NativeSelect>
           <FieldError>{errs.lock}</FieldError>
         </div>
         <hr className="border-t border-dashed" />
 
-        <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run('pw', async () => { await api('POST', '/password', { old: oldPw, new: newPw }); setOldPw(''); setNewPw(''); toast.success('Master password changed') }) }}>
+        <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run('pw', async () => { await api('POST', '/password', { old: oldPw, new: newPw }); setOldPw(''); setNewPw(''); toast.success('Master password changed', { description: 'Use the new password next time you unlock.' }) }) }}>
           <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Change master password</h3>
           <Label htmlFor="s-old" required>Current password</Label>
           <Input id="s-old" type="password" autoComplete="current-password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} />
@@ -79,7 +79,7 @@ export function Settings({ open, onClose, autolock, onAutolock, onImported }: { 
             e.target.value = ''
             if (f) run('imp', async () => {
               const r = await api<{ imported: number; skipped: number }>('POST', '/import', { data: await f.text(), passphrase: impPass })
-              toast.success(`Imported ${r.imported}${r.skipped ? `, skipped ${r.skipped}` : ''}`)
+              toast.success('Import complete', { description: `${r.imported} imported${r.skipped ? `, ${r.skipped} skipped` : ''}.` })
               setImpPass(''); onImported()
             })
           }} />

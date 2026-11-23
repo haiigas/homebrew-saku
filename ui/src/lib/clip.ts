@@ -22,7 +22,7 @@ async function write(s: string) {
 export async function copy(s: string, label = 'Copied') {
   if (!s) return
   await write(s)
-  toast.success(`${label} — clears in 30s`)
+  toast.success(label, { description: 'Clipboard clears in 30 seconds.' })
   window.clearTimeout(timer)
   timer = window.setTimeout(async () => {
     try {
