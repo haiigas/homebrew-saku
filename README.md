@@ -50,41 +50,9 @@ Every item has a name and any number of tags.
 ## Usage
 
 ```
-saku serve [--port 7878] [--bind 0.0.0.0] [--host name]... [--http]
+saku serve             run in the foreground
 saku backup <file>     copy the encrypted vault
 saku doctor            check paths and dependencies
-saku --version
-```
-
-```
-saku serve --bind 127.0.0.1        # this machine only
-```
-
-### Config file
-
-`~/.config/saku/config` (flags override it):
-
-```
-port = 7878
-bind = 0.0.0.0
-http = false          # plain HTTP, for localhost or behind a TLS proxy
-host = a.dev, b.dev   # extra allowed host names
-favicons = true       # set false to stop fetching site icons
-```
-
-### Behind rute (permanent)
-
-```
-# ~/.config/saku/config
-port = 7879
-bind = 127.0.0.1
-http = true
-host = saku.example.dev
-```
-
-```
-brew services restart saku
-rute proxy saku.example.dev 7879
 ```
 
 ## Develop
