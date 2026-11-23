@@ -71,7 +71,7 @@ export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag, colo
         <div className="min-w-0 flex-1">
           <h2 className="break-words text-lg font-semibold leading-tight">{it.name}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm text-muted-foreground">{T.label}</span>
+            <span className="inline-flex h-5 items-center border border-border bg-muted px-1.5 text-xs font-medium text-foreground">{T.label}</span>
             {it.tags.map((t) => (
               <button key={t} onClick={() => onTag(t)} className={`h-5 border px-1.5 text-xs font-medium ${chipClass(colors, t)}`}>{t}</button>
             ))}

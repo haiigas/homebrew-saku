@@ -39,3 +39,22 @@ h2 { font-size: 11px; font-weight: 500; letter-spacing: .05em; text-transform: u
 .gen { font: 14px ui-monospace, monospace; word-break: break-all; padding: 10px; border: 1px solid #d4d4d4; min-height: 40px }
 .chk { display: flex; align-items: center; gap: 8px; font-weight: 400 }
 svg { flex: none }
+select { appearance: none; padding-right: 32px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center }
+textarea { padding: 8px 10px; border: 1px solid #d4d4d4; font: inherit; resize: vertical; outline: none; border-radius: 0 }
+textarea:focus { border-color: #171717 }
+input[type=range] { padding: 0; border: 0; accent-color: #171717; width: 100% }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0) }
+.sec { display: grid; gap: 10px; border-top: 1px dashed #d4d4d4; padding-top: 10px }
+.box { display: grid; gap: 6px; border: 1px solid #e5e5e5; padding: 6px }
+.mono { font-family: ui-monospace, monospace }
+.chips { display: flex; flex-wrap: wrap; gap: 4px }
+.chip { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 4px 0 6px; border: 1px solid #d4d4d4; background: #f5f5f5; font-size: 12px }
+.chip button { height: 16px; width: 16px; padding: 0; border: 0; background: none }
+.item .a { position: relative; align-items: center }
+.kebab button.icon { height: 28px; width: 28px; opacity: 0 }
+.item:hover .kebab button.icon, .kebab.open button.icon, .kebab button.icon:focus-visible { opacity: 1 }
+.menu { position: absolute; right: 0; top: 100%; z-index: 5; min-width: 170px; background: #fff; border: 1px solid #d4d4d4; display: grid }
+.menu.up { top: auto; bottom: 100% }
+.menu button { height: 32px; border: 0; justify-content: flex-start }
+[hidden] { display: none !important }
+input[type=checkbox] { accent-color: #171717 }

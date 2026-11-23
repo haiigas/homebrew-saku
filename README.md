@@ -28,14 +28,14 @@ password generator, click-to-copy (clipboard cleared after 30s), and auto-lock (
 
 ## Chrome extension
 
-Fills logins and copies 2FA codes from the toolbar popup.
+Browse, add, fill and copy logins from the toolbar popup (all items, favorites, generator, settings).
 
 1. Open `chrome://extensions`, turn on **Developer mode**.
 2. **Load unpacked** and pick `$(brew --prefix)/share/saku/extension` (or `extension/` in this repo).
 3. Click the icon, enter the server URL (default `https://localhost:7878`; use the same address you open in the browser), allow access, and unlock.
 
 The popup lists logins whose saved website matches the current tab (subdomains included), and has a search box.
-Fill only runs when you click it, on the active tab. The session token stays in memory (`storage.session`) and is dropped when the browser closes.
+**Open & Fill** opens the login's first website and fills it; the `…` menu copies username, password or 2FA code. Nothing is filled unless you click, except with the opt-in auto-fill setting. The session token stays in memory (`storage.session`) and is dropped when the browser closes.
 For HTTPS the certificate must be trusted, so run `mkcert -install` once (a self-signed cert is rejected by Chrome extensions).
 
 ## Security

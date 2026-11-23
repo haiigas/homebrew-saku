@@ -123,7 +123,7 @@ function Vault({ st, setSt, refresh }: { st: Status; setSt: (s: Status) => void;
           return (
             <div key={t} className={`group flex items-center rounded-lg hover:bg-muted ${same(filter, f) ? 'bg-muted font-medium' : ''}`}>
               <button onClick={() => { setFilter(f); setPane({ mode: 'none' }) }} className="flex h-9 min-w-0 flex-1 items-center gap-2 px-2.5 text-left text-sm">
-                {c ? <span className={`mx-[5px] size-2.5 shrink-0 ${c.dot}`} /> : <Tag className="size-4 shrink-0" />}
+                <Tag className={`size-4 shrink-0 ${c?.text ?? ''}`} />
                 <span className="truncate">{t}</span>
               </button>
               <DropdownMenu>

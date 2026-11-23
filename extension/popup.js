@@ -87,49 +87,71 @@ async function endSession(path) {
 }
 
 // ---- fill ----
-function fill(username, password) {
-  const vis = (el) => el.offsetParent !== null && !el.disabled && !el.readOnly
-  const set = (el, v) => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v)
-    el.dispatchEvent(new Event('input', { bubbles: true }))
-    el.dispatchEvent(new Event('change', { bubbles: true }))
-  }
-  const inputs = [...document.querySelectorAll('input')].filter(vis)
-  const pwEl = inputs.find((i) => i.type === 'password')
-  const userEls = inputs.filter((i) => ['text', 'email', 'tel', ''].includes(i.type))
-  const userEl = pwEl ? userEls.filter((i) => i.compareDocumentPosition(pwEl) & Node.DOCUMENT_POSITION_FOLLOWING).pop() : userEls[0]
-  if (userEl && username) set(userEl, username)
-  if (pwEl) set(pwEl, password)
-  return !!(userEl || pwEl)
-}
-
 const say = (status, ok, msg) => { status.className = ok ? 'ok' : 'err'; status.textContent = msg }
 
 async function doFill(id, status) {
   try {
     const it = await call('GET', '/items/' + id)
+    const url = (it.data.urls || []).find((u) => u && u.trim())
+    if (url) {
+      const href = /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url
+      if (!/^https?:\/\//i.test(href)) throw new Error('Website is not an http(s) address.')
+      await chrome.runtime.sendMessage({ type: 'openfill', url: href, username: it.data.username || '', password: it.data.password || '' })
+      return window.close()
+    }
+    // no website saved: fill the current tab instead
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     const [r] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: fill, args: [it.data.username || '', it.data.password || ''] })
     say(status, !!r?.result, r?.result ? 'Filled.' : 'No login field found on this page.')
   } catch (x) { say(status, false, x.message) }
 }
 
-async function doTotp(id, status) {
+// ponytail: no 30s clipboard clear here (the popup closes, so a timer would not survive); the web UI does clear.
+async function copyField(id, key, label, status) {
   try {
     const it = await call('GET', '/items/' + id)
-    const { code } = await call('POST', '/totp', { Secret: it.data.totp })
-    await navigator.clipboard.writeText(code)
-    say(status, true, `2FA code ${code} copied.`)
+    let v = it.data[key] || ''
+    if (key === 'totp') v = (await call('POST', '/totp', { Secret: v })).code
+    await navigator.clipboard.writeText(v)
+    say(status, true, `${label} copied.`)
   } catch (x) { say(status, false, x.message) }
 }
 
 const TYPE_ICON = { login: 'key-round', bank: 'landmark', card: 'credit-card', wifi: 'wifi' }
 const TYPE_LABEL = { login: 'Logins', bank: 'Bank accounts', card: 'Payment cards', wifi: 'Wireless routers' }
 
+let openMenu = null
+document.addEventListener('click', () => { openMenu?.(); openMenu = null })
+
+function kebab(it, status) {
+  const wrap = h('div', { className: 'kebab' })
+  const menu = h('div', { className: 'menu', hidden: true },
+    btn('Copy username', { onclick: () => copyField(it.id, 'username', 'Username', status) }, 'copy'),
+    btn('Copy password', { onclick: () => copyField(it.id, 'password', 'Password', status) }, 'copy'),
+    ...(it.totp ? [btn('Copy 2FA code', { onclick: () => copyField(it.id, 'totp', '2FA code', status) }, 'copy')] : []))
+  const close = () => { menu.hidden = true; wrap.classList.remove('open') }
+  const t = btn('', { className: 'icon', title: 'More', 'aria-label': 'More', onclick: (ev) => {
+    ev.stopPropagation()
+    const was = !menu.hidden
+    openMenu?.()
+    openMenu = null
+    if (was) return
+    menu.hidden = false
+    wrap.classList.add('open')
+    const r = t.getBoundingClientRect()
+    menu.classList.toggle('up', r.bottom + 110 > innerHeight - 56)
+    openMenu = close
+  } }, 'ellipsis-vertical')
+  t.className = 'icon'
+  wrap.append(t, menu)
+  return wrap
+}
+
 function row(it, status) {
   const a = h('div', { className: 'a' })
-  if (it.type === 'login') a.append(h('button', { className: 'primary', textContent: 'Fill', onclick: () => doFill(it.id, status) }))
-  if (it.totp) a.append(btn('2FA', { onclick: () => doTotp(it.id, status) }))
+  if (it.type === 'login') {
+    a.append(h('button', { className: 'primary', textContent: 'Open & Fill', onclick: () => doFill(it.id, status) }), kebab(it, status))
+  }
   return h('div', { className: 'item' },
     h('div', { className: 't' }, ic(TYPE_ICON[it.type] || 'key-round')),
     h('div', { className: 'n', textContent: it.name }),
@@ -178,34 +200,145 @@ async function listView() {
 async function loadItems() { items = await call('GET', '/items') }
 
 // ---- add ----
+// Same types and fields as ui/src/lib/schema.ts. kind: text | secret | totp | area | urls | custom | link
+const SCHEMA = {
+  login: { label: 'Login', fields: [
+    ['username', 'Username', 'text', 'Details'], ['password', 'Password', 'secret', '', 1], ['totp', '2FA key', 'totp'],
+    ['urls', 'Websites', 'urls', 'Websites'], ['fields', 'Custom fields', 'custom', 'Custom fields'], ['notes', 'Notes', 'area', 'Notes']] },
+  bank: { label: 'Bank account', fields: [
+    ['bank_name', 'Bank name', 'text', 'Details'], ['holder', 'Full name', 'text'], ['account_number', 'Account number', 'text'], ['swift', 'Shift / SWIFT code', 'text'], ['pin', 'PIN code', 'secret'],
+    ['branch_name', 'Branch name', 'text', 'Branch'], ['branch_phone', 'Contact number', 'text'], ['branch_address', 'Address', 'area'], ['notes', 'Notes', 'area', 'Notes']] },
+  card: { label: 'Payment card', fields: [
+    ['holder', 'Card holder name', 'text', 'Details'], ['number', 'Card number', 'text'], ['expires', 'Expires', 'text', '', 0, 'MM/YY'], ['cvc', 'CVC', 'secret'], ['pin', 'PIN', 'secret'],
+    ['bank_name', 'Bank name', 'text', 'Bank'], ['bank_url', 'Bank website', 'text'], ['notes', 'Notes', 'area', 'Notes']] },
+  wifi: { label: 'Wireless router', fields: [
+    ['ssid', 'Network name (SSID)', 'text', 'Network'], ['password', 'Wi-Fi password', 'secret', '', 1],
+    ['ip', 'IP address', 'text', 'Router admin', 0, '192.168.1.1'], ['admin_user', 'Admin username', 'text'], ['admin_password', 'Admin password', 'secret', '', 1], ['notes', 'Notes', 'area', 'Notes']] },
+}
+
+function secretInput(get, set, withGen) {
+  const i = h('input', { type: 'password', autocomplete: 'off', spellcheck: false, className: 'mono', value: get(), oninput: () => set(i.value) })
+  const eye = btn('', { title: 'Show / hide', 'aria-label': 'Show or hide', onclick: () => (i.type = i.type === 'password' ? 'text' : 'password') }, 'eye')
+  eye.className = 'icon'
+  const kids = [i, eye]
+  if (withGen) {
+    const g = btn('', { title: 'Generate password', 'aria-label': 'Generate password', onclick: () => { i.value = generate(); set(i.value); i.type = 'text' } }, 'dices')
+    g.className = 'icon'
+    kids.push(g)
+  }
+  return h('div', { className: 'row' }, ...kids)
+}
+
+function tagsInput(tags, suggestions) {
+  const chips = h('div', { className: 'chips' })
+  const i = h('input', { placeholder: 'Add tag, press Enter', maxLength: 40 })
+  i.setAttribute('list', 'tag-list') // .list is read-only
+  const dl = h('datalist', { id: 'tag-list' }, ...suggestions.map((t) => h('option', { value: t })))
+  const draw = () => chips.replaceChildren(...tags.map((t) => h('span', { className: 'chip' }, t,
+    h('button', { type: 'button', 'aria-label': 'Remove ' + t, onclick: () => { tags.splice(tags.indexOf(t), 1); draw() } }, ic('x', 12)))))
+  const commit = () => {
+    const t = i.value.trim().replace(/,$/, '').trim()
+    if (t && tags.length < 20 && !tags.some((x) => x.toLowerCase() === t.toLowerCase())) tags.push(t)
+    i.value = ''
+    draw()
+  }
+  i.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ',') { ev.preventDefault(); commit() } else if (ev.key === 'Backspace' && !i.value && tags.length) { tags.pop(); draw() } }
+  i.onblur = commit
+  draw()
+  return h('div', { style: 'display:grid;gap:6px' }, i, dl, chips)
+}
+
 async function addView() {
   tab = ''
   renderNav()
   const [t] = await chrome.tabs.query({ active: true, currentWindow: true })
   let u = ''
   try { const x = new URL(t.url); if (/^https?:$/.test(x.protocol)) u = x.origin } catch {}
-  const name = h('input', { value: u ? new URL(u).hostname : '' })
-  const user = h('input', { autocomplete: 'off', spellcheck: false })
-  const pass = h('input', { type: 'password', autocomplete: 'new-password' })
-  const site = h('input', { value: u, spellcheck: false })
-  const e = h('p', { className: 'err' })
-  const eye = btn('', { className: 'icon', title: 'Show password', onclick: () => (pass.type = pass.type === 'password' ? 'text' : 'password') }, 'eye')
-  eye.className = 'icon'
-  const gen = btn('', { className: 'icon', title: 'Generate password', onclick: () => { pass.value = generate(); pass.type = 'text' } }, 'dices')
-  gen.className = 'icon'
-  const f = h('form', {}, field('Name', name), field('Username', user, false),
-    field('Password', h('div', { className: 'row' }, pass, gen, eye), false), field('Website', site, false), e,
-    h('div', { className: 'row' }, btn('Cancel', { onclick: () => go('all') }), h('button', { className: 'primary', style: 'flex:1', textContent: 'Save' })))
+  let type = 'login'
+  let d = {}
+  const tags = []
+  const name = h('input', { maxLength: 200, value: u ? new URL(u).hostname : '' })
+  const e = h('p', { className: 'err', role: 'alert' })
+  const ne = h('p', { className: 'err' })
+  const body = h('div', { style: 'display:grid;gap:10px' })
+  const sel = h('select', {}, ...Object.entries(SCHEMA).map(([k, v]) => h('option', { value: k }, v.label)))
+
+  const build = () => {
+    d = {}
+    const groups = []
+    for (const [key, label, kind, section, gen, ph] of SCHEMA[type].fields) {
+      if (section || !groups.length) groups.push({ title: section, nodes: [] })
+      d[key] = kind === 'urls' ? (type === 'login' && u ? [u] : ['']) : kind === 'custom' ? [] : ''
+      let input
+      if (kind === 'secret') input = secretInput(() => d[key], (v) => (d[key] = v), gen)
+      else if (kind === 'area') input = h('textarea', { rows: key === 'notes' ? 4 : 2, oninput: (ev) => (d[key] = ev.target.value) })
+      else if (kind === 'urls') input = urlsInput(key)
+      else if (kind === 'custom') input = customInput(key)
+      else input = h('input', { autocomplete: 'off', placeholder: ph || (kind === 'totp' ? 'Base32 secret or otpauth:// URI' : ''), className: kind === 'totp' ? 'mono' : '', oninput: (ev) => (d[key] = ev.target.value) })
+      const hide = kind === 'urls' || kind === 'custom' || label === section
+      groups[groups.length - 1].nodes.push(h('label', {}, h('span', { className: hide ? 'sr' : '' }, label), input))
+    }
+    body.replaceChildren(...groups.map((g) => h('div', { className: 'sec' }, g.title ? h('h2', {}, g.title) : null, ...g.nodes)))
+  }
+
+  function urlsInput(key) {
+    const box = h('div', { style: 'display:grid;gap:6px' })
+    const draw = () => box.replaceChildren(...d[key].map((v, j) => {
+      const i = h('input', { value: v, placeholder: 'https://example.com', spellcheck: false, oninput: () => (d[key][j] = i.value) })
+      const rm = btn('', { title: 'Remove', 'aria-label': 'Remove website', onclick: () => { d[key] = d[key].length > 1 ? d[key].filter((_, y) => y !== j) : ['']; draw() } }, 'trash')
+      rm.className = 'icon'
+      return h('div', { className: 'row' }, i, rm)
+    }), btn('Add website', { onclick: () => { d[key].push(''); draw() } }, 'plus'))
+    draw()
+    return box
+  }
+
+  function customInput(key) {
+    const box = h('div', { style: 'display:grid;gap:6px' })
+    const draw = () => box.replaceChildren(...d[key].map((c, j) => {
+      const label = h('input', { value: c.label, placeholder: 'Field name', 'aria-label': 'Field name', oninput: () => (c.label = label.value) })
+      const ty = h('select', { 'aria-label': 'Field type', onchange: () => { c.type = ty.value; draw() } },
+        ...[['text', 'Text'], ['password', 'Password'], ['totp', '2FA key']].map(([v, l]) => h('option', { value: v, selected: c.type === v }, l)))
+      const rm = btn('', { title: 'Remove', 'aria-label': 'Remove field', onclick: () => { d[key].splice(j, 1); draw() } }, 'trash')
+      rm.className = 'icon'
+      const val = c.type === 'password' ? secretInput(() => c.value, (v) => (c.value = v), true)
+        : h('input', { value: c.value, 'aria-label': 'Value', placeholder: c.type === 'totp' ? 'Base32 secret' : 'Value', autocomplete: 'off', className: c.type === 'totp' ? 'mono' : '', oninput: (ev) => (c.value = ev.target.value) })
+      return h('div', { className: 'box' }, h('div', { className: 'row' }, label, ty, rm), val)
+    }), btn('Add field', { onclick: () => { d[key].push({ label: '', type: 'text', value: '' }); draw() } }, 'plus'))
+    draw()
+    return box
+  }
+
+  const host = name.value // prefilled from the tab; only meaningful for logins
+  sel.onchange = () => {
+    type = sel.value
+    if (type !== 'login' && name.value === host) name.value = ''
+    else if (type === 'login' && !name.value) name.value = host
+    build()
+  }
+  build()
+  const save = h('button', { className: 'primary', style: 'flex:1', textContent: 'Save' })
+  const f = h('form', {},
+    field('Type', sel, false),
+    field('Name', name), ne,
+    field('Tags', tagsInput(tags, [...new Set(items.flatMap((i) => i.tags || []))]), false),
+    body, e,
+    h('div', { className: 'row' }, btn('Cancel', { onclick: () => go('all') }), save))
   f.onsubmit = async (ev) => {
     ev.preventDefault()
-    if (!name.value.trim()) return (e.textContent = 'Name is required.')
+    e.textContent = ne.textContent = ''
+    if (!name.value.trim()) { ne.textContent = 'Name is required.'; return name.focus() }
+    const data = { ...d }
+    if (Array.isArray(data.urls)) data.urls = data.urls.map((x) => x.trim()).filter(Boolean)
+    if (Array.isArray(data.fields)) data.fields = data.fields.filter((x) => x.label || x.value)
+    save.disabled = true
     try {
-      await call('POST', '/items', { type: 'login', name: name.value.trim(), tags: [], data: { username: user.value, password: pass.value, totp: '', urls: site.value.trim() ? [site.value.trim()] : [], fields: [], notes: '' } })
+      await call('POST', '/items', { type, name: name.value.trim(), tags, favorite: false, data })
       await loadItems()
       go('all')
-    } catch (x) { e.textContent = x.message }
+    } catch (x) { e.textContent = x.message; save.disabled = false }
   }
-  show(h('h2', {}, 'New login'), f)
+  show(h('h2', {}, 'New item'), f)
   name.focus()
 }
 $('#add').onclick = () => addView().catch(failed)
@@ -234,14 +367,15 @@ async function genView() {
   const out = h('div', { className: 'gen' })
   const status = h('p', { role: 'status' })
   const make = () => { out.textContent = generate() || 'Pick at least one character set.' }
-  const len = h('input', { type: 'number', min: 8, max: 64, value: gopt.length, style: 'width:72px' })
-  len.oninput = () => { gopt.length = Math.min(64, Math.max(8, +len.value || 20)); make() }
+  const lv = h('b', { textContent: gopt.length })
+  const len = h('input', { type: 'range', min: 8, max: 64, value: gopt.length, 'aria-label': 'Length' })
+  len.oninput = () => { gopt.length = +len.value; lv.textContent = len.value; make() }
   const box = (k, l) => h('label', { className: 'chk' }, h('input', { type: 'checkbox', checked: gopt[k], onchange: (ev) => { gopt[k] = ev.target.checked; make() } }), l)
   show(h('h2', {}, 'Password generator'), out,
     h('div', { className: 'row' },
       btn('Regenerate', { style: 'flex:1', onclick: make }, 'dices'),
       btn('Copy', { className: 'primary', style: 'flex:1', onclick: async () => { await navigator.clipboard.writeText(out.textContent); say(status, true, 'Copied.') } }, 'copy')),
-    hr(), field('Length (8-64)', len, false), box('upper', 'Uppercase A-Z'), box('lower', 'Lowercase a-z'), box('digits', 'Digits 0-9'), box('symbols', 'Symbols !@#$'), status)
+    hr(), h('label', {}, h('span', {}, 'Length: ', lv), len), box('upper', 'Uppercase A-Z'), box('lower', 'Lowercase a-z'), box('digits', 'Digits 0-9'), box('symbols', 'Symbols !@#$'), status)
   make()
 }
 
