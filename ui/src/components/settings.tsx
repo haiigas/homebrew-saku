@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input'
 import { FieldError, Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
-import { Separator } from '@/components/ui/separator'
 
 const LOCKS = [[300, '5 minutes'], [900, '15 minutes'], [1800, '30 minutes'], [0, 'Never']] as const
 
@@ -32,17 +31,18 @@ export function Settings({ open, onClose, autolock, onAutolock, onImported }: { 
           <DialogDescription>Security, backup and import.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="al">Auto-lock after inactivity</Label>
+        <div className="space-y-3">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Auto-lock</h3>
+          <Label htmlFor="al">Lock after inactivity</Label>
           <NativeSelect id="al" value={autolock} className="w-full" onChange={(e) => run('lock', async () => { await api('POST', '/autolock', { seconds: +e.target.value }); onAutolock(+e.target.value); toast.success('Saved') })}>
             {LOCKS.map(([s, l]) => <option key={s} value={s}>{l}</option>)}
           </NativeSelect>
           <FieldError>{errs.lock}</FieldError>
         </div>
-        <Separator />
+        <hr className="border-t border-dashed" />
 
-        <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); run('pw', async () => { await api('POST', '/password', { old: oldPw, new: newPw }); setOldPw(''); setNewPw(''); toast.success('Master password changed') }) }}>
-          <h3 className="text-sm font-medium">Change master password</h3>
+        <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run('pw', async () => { await api('POST', '/password', { old: oldPw, new: newPw }); setOldPw(''); setNewPw(''); toast.success('Master password changed') }) }}>
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Change master password</h3>
           <Label htmlFor="s-old" required>Current password</Label>
           <Input id="s-old" type="password" autoComplete="current-password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} />
           <Label htmlFor="s-new" required>New password (8+ characters)</Label>
@@ -50,10 +50,10 @@ export function Settings({ open, onClose, autolock, onAutolock, onImported }: { 
           <FieldError>{errs.pw}</FieldError>
           <Button type="submit" variant="outline" size="sm" disabled={!oldPw || !newPw}>Change</Button>
         </form>
-        <Separator />
+        <hr className="border-t border-dashed" />
 
-        <form className="space-y-2" onSubmit={(e) => e.preventDefault()}>
-          <h3 className="text-sm font-medium">Export</h3>
+        <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Export</h3>
           <Label htmlFor="s-exp" required>Master password</Label>
           <Input id="s-exp" type="password" autoComplete="current-password" value={expPw} onChange={(e) => setExpPw(e.target.value)} />
           <Label htmlFor="s-pass">Passphrase to encrypt the file (recommended)</Label>
@@ -67,10 +67,10 @@ export function Settings({ open, onClose, autolock, onAutolock, onImported }: { 
             setExpPw(''); setExpPass('')
           })}><Download /> Export JSON</Button>
         </form>
-        <Separator />
+        <hr className="border-t border-dashed" />
 
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium">Import</h3>
+        <div className="space-y-3">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Import</h3>
           <p className="text-xs text-muted-foreground">saku export (plain or encrypted), Bitwarden JSON, or CSV (name, login_uri, login_username, login_password, login_totp, notes, folder).</p>
           <Label htmlFor="s-imp">Passphrase (only for an encrypted saku export)</Label>
           <Input id="s-imp" type="password" value={impPass} onChange={(e) => setImpPass(e.target.value)} />
