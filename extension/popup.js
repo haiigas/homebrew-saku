@@ -128,7 +128,7 @@ function kebab(it, status) {
   const menu = h('div', { className: 'menu', hidden: true },
     btn('Copy username', { onclick: () => copyField(it.id, 'username', 'Username', status) }, 'copy'),
     btn('Copy password', { onclick: () => copyField(it.id, 'password', 'Password', status) }, 'copy'),
-    ...(it.totp ? [btn('Copy 2FA code', { onclick: () => copyField(it.id, 'totp', '2FA code', status) }, 'copy')] : []))
+    ...(it.totp ? [btn('Copy TOTP', { onclick: () => copyField(it.id, 'totp', 'TOTP', status) }, 'copy')] : []))
   const close = () => { menu.hidden = true; wrap.classList.remove('open') }
   const t = btn('', { className: 'icon', title: 'More', 'aria-label': 'More', onclick: (ev) => {
     ev.stopPropagation()
