@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const version = "0.1.0"
+const version = "0.1.1"
 
 func home() string {
 	if h := os.Getenv("SAKU_HOME"); h != "" {
@@ -36,6 +36,7 @@ const usage = `saku ` + version + ` — local encrypted password manager
 usage:
   saku serve [--port 7878] [--bind 0.0.0.0] [--host name]... [--http]
                        start the web UI (HTTPS by default)
+  config: ~/.config/saku/config  (port, bind, http, host = a.dev, b.dev; flags win)
   saku backup <file>   copy the (still encrypted) vault to <file>
   saku doctor          check paths and dependencies
   saku -h | --help
@@ -85,12 +86,39 @@ func main() {
 	}
 }
 
+// readConfig parses "key = value" lines; flags override it.
+func readConfig(path string) map[string]string {
+	m := map[string]string{}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return m
+	}
+	for _, l := range strings.Split(string(b), "\n") {
+		if k, v, ok := strings.Cut(l, "="); ok && !strings.HasPrefix(strings.TrimSpace(l), "#") {
+			m[strings.ToLower(strings.TrimSpace(k))] = strings.TrimSpace(v)
+		}
+	}
+	return m
+}
+
 func serve(args []string) {
+	cfg := readConfig(filepath.Join(home(), "config"))
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
-	port := fs.Int("port", 7878, "port")
-	bind := fs.String("bind", "0.0.0.0", "bind address")
-	plain := fs.Bool("http", false, "plain HTTP (use only on localhost or behind a TLS proxy)")
+	dport := 7878
+	fmt.Sscan(cfg["port"], &dport)
+	dbind := "0.0.0.0"
+	if cfg["bind"] != "" {
+		dbind = cfg["bind"]
+	}
+	port := fs.Int("port", dport, "port")
+	bind := fs.String("bind", dbind, "bind address")
+	plain := fs.Bool("http", cfg["http"] == "true", "plain HTTP (use only on localhost or behind a TLS proxy)")
 	var hosts multi
+	for _, h := range strings.Split(cfg["host"], ",") {
+		if h = strings.TrimSpace(h); h != "" {
+			hosts = append(hosts, strings.ToLower(h))
+		}
+	}
 	fs.Var(&hosts, "host", "extra allowed hostname (repeatable)")
 	_ = fs.Parse(args)
 

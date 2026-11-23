@@ -47,9 +47,25 @@ saku doctor            check paths and dependencies
 
 ```
 saku serve --bind 127.0.0.1                     # this machine only
-saku serve --http --port 7879 --host saku.dev   # behind rute
-rute proxy saku.dev 7879
 ```
+
+### Behind rute (permanent)
+
+`~/.config/saku/config`:
+
+```
+port = 7879
+bind = 127.0.0.1
+http = true
+host = saku.example.dev
+```
+
+```
+brew services restart saku
+rute proxy saku.example.dev 7879
+```
+
+Flags override the config file.
 
 Import: saku export (plain or encrypted), Bitwarden JSON, or CSV. Export is in Settings.
 
