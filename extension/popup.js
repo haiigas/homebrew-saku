@@ -409,12 +409,18 @@ async function settingsView() {
   lockSel.onchange = async () => {
     try { await call('POST', '/autolock', { seconds: +lockSel.value }); st.autolock = +lockSel.value; say(status, true, 'Auto-lock saved.') } catch (x) { say(status, false, x.message) }
   }
-  const af = h('input', { type: 'checkbox', checked: !!autofill, onchange: () => chrome.storage.local.set({ autofill: af.checked }) })
+  const af = h('input', { type: 'checkbox', checked: !!autofill, onchange: async () => {
+    if (af.checked && !(await chrome.permissions.contains(ALL_SITES)) && !(await chrome.permissions.request(ALL_SITES))) {
+      af.checked = false
+      return say(status, false, 'Allow access to sites to use auto-fill.')
+    }
+    chrome.storage.local.set({ autofill: af.checked })
+  } })
   show(
     h('div', { className: 'set' }, h('h2', {}, 'Security'), field('Auto-lock after', lockSel, false)),
     h('div', { className: 'set' }, h('h2', {}, 'Auto-fill'),
-      h('label', { className: 'chk' }, af, 'Fill automatically when exactly one login matches the site'),
-      h('p', { className: 'muted' }, 'Runs when you open this popup on a page. Off by default.')),
+      h('label', { className: 'chk' }, af, 'Fill automatically when a page loads and exactly one login matches the site'),
+      h('p', { className: 'muted' }, 'Works while the vault is unlocked, on https pages only. Off by default.')),
     h('div', { className: 'set' }, h('h2', {}, 'Server'), h('p', { className: 'muted' }, base),
       btn('Change server', { onclick: () => endSession('/signout').then(() => authView({ editServer: true })) }, 'server')),
     h('div', { className: 'set', style: 'border:0' }, h('h2', {}, 'Session'),
@@ -424,18 +430,6 @@ async function settingsView() {
 }
 
 // ---- boot ----
-async function maybeAutofill() {
-  if (!(await chrome.storage.local.get('autofill')).autofill) return
-  const [t] = await chrome.tabs.query({ active: true, currentWindow: true })
-  let host = ''
-  try { host = new URL(t.url).hostname } catch { return }
-  const m = await call('GET', '/match?host=' + encodeURIComponent(host))
-  if (m.length === 1) {
-    const status = $('#app p[role=status]')
-    if (status) await fillHere(m[0].id, status)
-  }
-}
-
 async function start() {
   const s = await chrome.storage.local.get('base')
   base = s.base || DEFAULT
@@ -451,7 +445,6 @@ async function start() {
     tab = view.tab || 'all'
     renderNav()
     await go(tab)
-    await maybeAutofill()
   } catch (x) {
     if (x.status === 401) return authView()
     authView({ editServer: true, err: `Cannot reach ${base}. Is saku running? (${x.message})` })
