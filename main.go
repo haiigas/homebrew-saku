@@ -36,7 +36,6 @@ const usage = `saku ` + version + ` — local encrypted password manager
 usage:
   saku serve [--port 7878] [--bind 0.0.0.0] [--host name]... [--http]
                        start the web UI (HTTPS by default)
-  config: ~/.config/saku/config  (port, bind, http, host = a.dev, b.dev; favicons = false; flags win)
   saku backup <file>   copy the (still encrypted) vault to <file>
   saku doctor          check paths and dependencies
   saku -h | --help
@@ -45,7 +44,6 @@ usage:
 examples:
   saku serve                                  # https://localhost:7878 and https://<lan-ip>:7878
   saku serve --bind 127.0.0.1                 # this machine only
-  saku serve --http --port 7879 --host saku.dev   # behind rute: rute proxy saku.dev 7879
   brew services start saku                    # run in background
 `
 
