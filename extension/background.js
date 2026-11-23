@@ -27,8 +27,12 @@ async function tryFill(tabId, u, p, n, needPw) {
 
 // Auto-fill: when a page finishes loading, if the setting is on, the vault is unlocked and exactly one login
 // matches the site, fill it. No match, several matches or a locked vault: do nothing (use the popup).
+const lastRun = new Map()
 chrome.tabs.onUpdated.addListener(async (id, info, tab) => {
-  if (info.status !== 'complete' || !tab.url) return
+  // every load and reload ('complete'), and in-page navigation of single-page apps (url change)
+  if ((info.status !== 'complete' && !info.url) || !tab.url) return
+  if (Date.now() - (lastRun.get(id) || 0) < 1500) return // load + url events of one navigation
+  lastRun.set(id, Date.now())
   try {
     const u = new URL(tab.url)
     const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname)

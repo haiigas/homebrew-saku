@@ -215,7 +215,7 @@ async function listView() {
     list.replaceChildren(...(rows.length ? rows.map((i) => row(i, status)) : here.length ? [] : [h('p', { className: 'muted', textContent: items.length ? 'Nothing found.' : 'No items yet. Use + to add a login.' })]))
   }
   ;[q, type, tg].forEach((e) => (e.oninput = () => { view.q = q.value; view.type = type.value; view.tag = tg.value; saveView(); render() }))
-  show(h('div', { className: 'row' }, q), h('div', { className: 'row' }, type, tg), hereBox, h('h2', {}, tab === 'fav' ? 'Favorites' : 'All items'), list, status)
+  show(h('div', { className: 'bar' }, h('div', { className: 'row' }, q), h('div', { className: 'row' }, type, tg)), hereBox, h('h2', {}, tab === 'fav' ? 'Favorites' : 'All items'), list, status)
   render()
 }
 
