@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import { copy } from '@/lib/clip'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { FieldError, Label } from '@/components/ui/label'
 
 function Shell({ children, title, sub }: { children: React.ReactNode; title: string; sub: string }) {
   return (
@@ -29,6 +29,7 @@ export function Auth({ initialized, onDone }: { initialized: boolean; onDone: ()
   const [rk, setRk] = useState('')
   const [mode, setMode] = useState<'unlock' | 'recover'>('unlock')
   const [err, setErr] = useState('')
+  const [fe, setFe] = useState<{ rk?: string; pw?: string; pw2?: string }>({})
   const [busy, setBusy] = useState(false)
   const [recovery, setRecovery] = useState('')
   const [saved, setSaved] = useState(false)
@@ -36,10 +37,13 @@ export function Auth({ initialized, onDone }: { initialized: boolean; onDone: ()
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErr('')
-    if (!initialized || mode === 'recover') {
-      if (pw.length < 8) return setErr('Use at least 8 characters.')
-      if (pw !== pw2) return setErr('Passwords do not match.')
-    }
+    const f: typeof fe = {}
+    if (initialized && mode === 'recover' && !rk.trim()) f.rk = 'Recovery key is required.'
+    if (!pw) f.pw = 'Password is required.'
+    else if ((!initialized || mode === 'recover') && pw.length < 8) f.pw = 'Use at least 8 characters.'
+    if ((!initialized || mode === 'recover') && pw && pw !== pw2) f.pw2 = 'Passwords do not match.'
+    setFe(f)
+    if (Object.keys(f).length) return
     setBusy(true)
     try {
       if (!initialized) {
@@ -88,18 +92,21 @@ export function Auth({ initialized, onDone }: { initialized: boolean; onDone: ()
       <form onSubmit={submit} className="space-y-4">
         {recovering && (
           <div className="space-y-1.5">
-            <Label htmlFor="rk">Recovery key</Label>
-            <Input id="rk" value={rk} onChange={(e) => setRk(e.target.value)} autoComplete="off" spellCheck={false} className="font-mono" placeholder="XXXX-XXXX-XXXX-…" />
+            <Label htmlFor="rk" required>Recovery key</Label>
+            <Input id="rk" value={rk} onChange={(e) => setRk(e.target.value)} autoComplete="off" spellCheck={false} className="font-mono" placeholder="XXXX-XXXX-XXXX-…" aria-invalid={!!fe.rk} />
+            <FieldError>{fe.rk}</FieldError>
           </div>
         )}
         <div className="space-y-1.5">
-          <Label htmlFor="pw">{recovering ? 'New master password' : 'Master password'}</Label>
-          <Input id="pw" type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} autoComplete={initialized && !recovering ? 'current-password' : 'new-password'} />
+          <Label htmlFor="pw" required>{recovering ? 'New master password' : 'Master password'}</Label>
+          <Input id="pw" type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} autoComplete={initialized && !recovering ? 'current-password' : 'new-password'} aria-invalid={!!fe.pw} />
+          <FieldError>{fe.pw}</FieldError>
         </div>
         {(!initialized || recovering) && (
           <div className="space-y-1.5">
-            <Label htmlFor="pw2">Confirm password</Label>
-            <Input id="pw2" type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
+            <Label htmlFor="pw2" required>Confirm password</Label>
+            <Input id="pw2" type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" aria-invalid={!!fe.pw2} />
+            <FieldError>{fe.pw2}</FieldError>
           </div>
         )}
         {err && (
@@ -107,11 +114,11 @@ export function Auth({ initialized, onDone }: { initialized: boolean; onDone: ()
             {err}
           </p>
         )}
-        <Button type="submit" className="w-full" disabled={busy || !pw}>
+        <Button type="submit" className="w-full" disabled={busy}>
           {!initialized ? 'Create vault' : recovering ? 'Recover' : 'Unlock'}
         </Button>
         {initialized && (
-          <button type="button" className="block w-full text-center text-xs text-muted-foreground hover:underline" onClick={() => { setMode(recovering ? 'unlock' : 'recover'); setErr('') }}>
+          <button type="button" className="block w-full text-center text-xs text-muted-foreground hover:underline" onClick={() => { setMode(recovering ? 'unlock' : 'recover'); setErr(''); setFe({}) }}>
             {recovering ? 'Back to unlock' : 'Forgot password? Use recovery key'}
           </button>
         )}

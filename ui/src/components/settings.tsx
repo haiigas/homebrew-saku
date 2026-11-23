@@ -5,7 +5,7 @@ import { api, apiBlob } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { FieldError, Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Separator } from '@/components/ui/separator'
 
@@ -18,7 +18,11 @@ export function Settings({ open, onClose, autolock, onAutolock, onImported }: { 
   const [expPass, setExpPass] = useState('')
   const [impPass, setImpPass] = useState('')
   const file = useRef<HTMLInputElement>(null)
-  const run = async (f: () => Promise<void>) => { try { await f() } catch (e: any) { toast.error(e.message) } }
+  const [errs, setErrs] = useState<Record<string, string>>({})
+  const run = async (sec: string, f: () => Promise<void>) => {
+    setErrs((e) => ({ ...e, [sec]: '' }))
+    try { await f() } catch (e: any) { setErrs((x) => ({ ...x, [sec]: e.message })) }
+  }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -30,26 +34,33 @@ export function Settings({ open, onClose, autolock, onAutolock, onImported }: { 
 
         <div className="space-y-1.5">
           <Label htmlFor="al">Auto-lock after inactivity</Label>
-          <NativeSelect id="al" value={autolock} className="w-full" onChange={(e) => run(async () => { await api('POST', '/autolock', { seconds: +e.target.value }); onAutolock(+e.target.value); toast.success('Saved') })}>
+          <NativeSelect id="al" value={autolock} className="w-full" onChange={(e) => run('lock', async () => { await api('POST', '/autolock', { seconds: +e.target.value }); onAutolock(+e.target.value); toast.success('Saved') })}>
             {LOCKS.map(([s, l]) => <option key={s} value={s}>{l}</option>)}
           </NativeSelect>
+          <FieldError>{errs.lock}</FieldError>
         </div>
         <Separator />
 
-        <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); run(async () => { await api('POST', '/password', { old: oldPw, new: newPw }); setOldPw(''); setNewPw(''); toast.success('Master password changed') }) }}>
-          <Label>Change master password</Label>
-          <Input type="password" placeholder="Current password" autoComplete="current-password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} />
-          <Input type="password" placeholder="New password (8+ chars)" autoComplete="new-password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
+        <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); run('pw', async () => { await api('POST', '/password', { old: oldPw, new: newPw }); setOldPw(''); setNewPw(''); toast.success('Master password changed') }) }}>
+          <h3 className="text-sm font-medium">Change master password</h3>
+          <Label htmlFor="s-old" required>Current password</Label>
+          <Input id="s-old" type="password" autoComplete="current-password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} />
+          <Label htmlFor="s-new" required>New password (8+ characters)</Label>
+          <Input id="s-new" type="password" autoComplete="new-password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
+          <FieldError>{errs.pw}</FieldError>
           <Button type="submit" variant="outline" size="sm" disabled={!oldPw || !newPw}>Change</Button>
         </form>
         <Separator />
 
         <form className="space-y-2" onSubmit={(e) => e.preventDefault()}>
-          <Label>Export</Label>
-          <Input type="password" placeholder="Master password (required)" autoComplete="current-password" value={expPw} onChange={(e) => setExpPw(e.target.value)} />
-          <Input type="password" placeholder="Passphrase to encrypt file (recommended)" autoComplete="new-password" value={expPass} onChange={(e) => setExpPass(e.target.value)} />
-          {!expPass && <p className="text-xs text-destructive">Without a passphrase the file contains all passwords in plain text.</p>}
-          <Button type="submit" variant="outline" size="sm" disabled={!expPw} onClick={() => run(async () => {
+          <h3 className="text-sm font-medium">Export</h3>
+          <Label htmlFor="s-exp" required>Master password</Label>
+          <Input id="s-exp" type="password" autoComplete="current-password" value={expPw} onChange={(e) => setExpPw(e.target.value)} />
+          <Label htmlFor="s-pass">Passphrase to encrypt the file (recommended)</Label>
+          <Input id="s-pass" type="password" autoComplete="new-password" value={expPass} onChange={(e) => setExpPass(e.target.value)} />
+          {!expPass && <p className="text-xs text-muted-foreground">Without a passphrase the file contains all passwords in plain text.</p>}
+          <FieldError>{errs.exp}</FieldError>
+          <Button type="submit" variant="outline" size="sm" disabled={!expPw} onClick={() => run('exp', async () => {
             const b = await apiBlob('/export', { password: expPw, passphrase: expPass })
             const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(b), download: 'saku-export.json' })
             a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000)
@@ -59,19 +70,21 @@ export function Settings({ open, onClose, autolock, onAutolock, onImported }: { 
         <Separator />
 
         <div className="space-y-2">
-          <Label>Import</Label>
+          <h3 className="text-sm font-medium">Import</h3>
           <p className="text-xs text-muted-foreground">saku export (plain or encrypted), Bitwarden JSON, or CSV (name, login_uri, login_username, login_password, login_totp, notes, folder).</p>
-          <Input type="password" placeholder="Passphrase (only for encrypted saku export)" value={impPass} onChange={(e) => setImpPass(e.target.value)} />
+          <Label htmlFor="s-imp">Passphrase (only for an encrypted saku export)</Label>
+          <Input id="s-imp" type="password" value={impPass} onChange={(e) => setImpPass(e.target.value)} />
           <input ref={file} type="file" accept=".json,.csv,text/csv,application/json" hidden onChange={(e) => {
             const f = e.target.files?.[0]
             e.target.value = ''
-            if (f) run(async () => {
+            if (f) run('imp', async () => {
               const r = await api<{ imported: number; skipped: number }>('POST', '/import', { data: await f.text(), passphrase: impPass })
               toast.success(`Imported ${r.imported}${r.skipped ? `, skipped ${r.skipped}` : ''}`)
               setImpPass(''); onImported()
             })
           }} />
           <Button variant="outline" size="sm" onClick={() => file.current?.click()}><Upload /> Choose file</Button>
+          <FieldError>{errs.imp}</FieldError>
         </div>
       </DialogContent>
     </Dialog>

@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-function Label({ className, ...props }: React.ComponentProps<"label">) {
+function Label({ className, required, children, ...props }: React.ComponentProps<"label"> & { required?: boolean }) {
   return (
     <label
       data-slot="label"
@@ -10,8 +10,24 @@ function Label({ className, ...props }: React.ComponentProps<"label">) {
         className
       )}
       {...props}
-    />
+    >
+      {children}
+      {required && (
+        <span aria-hidden className="-ml-1.5 text-destructive">
+          *
+        </span>
+      )}
+    </label>
   )
 }
 
-export { Label }
+function FieldError({ children, id }: { children?: React.ReactNode; id?: string }) {
+  if (!children) return null
+  return (
+    <p id={id} role="alert" className="text-xs text-destructive">
+      {children}
+    </p>
+  )
+}
+
+export { Label, FieldError }

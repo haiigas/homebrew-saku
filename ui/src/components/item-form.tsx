@@ -1,11 +1,10 @@
 import { Dices, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { api, type Data, type Item, type ItemType } from '@/lib/api'
 import { blank, TYPE_KEYS, TYPES, type Field } from '@/lib/schema'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { FieldError, Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { Generator } from './generator'
@@ -37,6 +36,8 @@ export function ItemForm({ item, startType, tags, onSaved, onCancel }: { item?: 
   const [d, setD] = useState<Data>(() => ({ ...blank(item?.type ?? startType), ...(item?.data ?? {}) }))
   const [gen, setGen] = useState<((v: string) => void) | null>(null)
   const [busy, setBusy] = useState(false)
+  const [nameErr, setNameErr] = useState('')
+  const [err, setErr] = useState('')
   const T = TYPES[type]
 
   const set = (k: string, v: any) => setD((x) => ({ ...x, [k]: v }))
@@ -44,7 +45,13 @@ export function ItemForm({ item, startType, tags, onSaved, onCancel }: { item?: 
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) return toast.error('Name is required')
+    setErr('')
+    if (!name.trim()) {
+      setNameErr('Name is required.')
+      document.getElementById('f-name')?.focus()
+      return
+    }
+    setNameErr('')
     const data: Data = { ...d }
     if (Array.isArray(data.urls)) data.urls = data.urls.map((u: string) => u.trim()).filter(Boolean)
     if (Array.isArray(data.fields)) data.fields = data.fields.filter((f: any) => f.label || f.value)
@@ -52,7 +59,7 @@ export function ItemForm({ item, startType, tags, onSaved, onCancel }: { item?: 
     try {
       const body = { type, name, tags: tgs, favorite: item?.favorite ?? false, data }
       onSaved(item ? await api<Item>('PUT', `/items/${item.id}`, { ...body, created: item.created }) : await api<Item>('POST', '/items', body))
-    } catch (e: any) { toast.error(e.message) } finally { setBusy(false) }
+    } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 
   const input = (f: Field, i: number) => {
@@ -115,14 +122,16 @@ export function ItemForm({ item, startType, tags, onSaved, onCancel }: { item?: 
         </div>
       )}
       <div className="space-y-1.5">
-        <Label htmlFor="f-name">Name</Label>
-        <Input id="f-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
+        <Label htmlFor="f-name" required>Name</Label>
+        <Input id="f-name" autoFocus value={name} onChange={(e) => { setName(e.target.value); setNameErr('') }} maxLength={200} aria-invalid={!!nameErr} aria-describedby={nameErr ? 'f-name-err' : undefined} />
+        <FieldError id="f-name-err">{nameErr}</FieldError>
       </div>
       <div className="space-y-1.5">
         <Label>Tags</Label>
         <TagsInput value={tgs} onChange={setTgs} suggestions={tags} />
       </div>
       {T.fields.map(input)}
+      <FieldError>{err}</FieldError>
       <div className="flex gap-2 pt-2">
         <Button type="submit" disabled={busy}>Save</Button>
         <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>

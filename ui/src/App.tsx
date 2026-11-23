@@ -41,7 +41,7 @@ export default function App() {
   return (
     <TooltipProvider>
       {st.unlocked ? <Vault st={st} setSt={setSt} refresh={refresh} /> : <Auth initialized={st.initialized} onDone={refresh} />}
-      <Toaster position="bottom-right" />
+      <Toaster />
     </TooltipProvider>
   )
 }
