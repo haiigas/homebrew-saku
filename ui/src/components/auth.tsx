@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 function Shell({ children, title, sub }: { children: React.ReactNode; title: string; sub: string }) {
   return (
     <div className="flex min-h-svh items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-sm space-y-5 rounded-xl border bg-background p-6 shadow-sm">
+      <div className="w-full max-w-sm space-y-5 rounded-xl border bg-background p-6">
         <div className="space-y-1">
           <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Lock className="size-5" />
