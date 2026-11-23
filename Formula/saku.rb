@@ -1,7 +1,7 @@
 class Saku < Formula
   desc "Local encrypted password manager with a web UI"
   homepage "https://github.com/haiigas/homebrew-saku"
-  url "https://github.com/haiigas/homebrew-saku/archive/refs/tags/v0.1.4.tar.gz"
+  url "https://github.com/haiigas/homebrew-saku/archive/refs/tags/v0.1.5.tar.gz"
   sha256 "0d579268fab373537e2371886fd5d77138329e6173d9d6986b094d47c66498d4"
   license "MIT"
 
@@ -38,6 +38,6 @@ class Saku < Formula
   end
 
   test do
-    assert_match "saku 0.1.4", shell_output("#{bin}/saku --version")
+    assert_match "saku 0.1.5", shell_output("#{bin}/saku --version")
   end
 end

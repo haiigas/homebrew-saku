@@ -19,6 +19,9 @@ let base = DEFAULT
 let token = ''
 let items = []
 let st = {}
+let tab = 'all'
+let view = { tab: 'all', q: '', type: '', tag: '' } // restored when the popup reopens
+const saveView = () => { if (tab) view.tab = tab; chrome.storage.session.set({ view }) }
 
 async function call(method, path, body) {
   const r = await fetch(base + '/api' + path, {
@@ -83,26 +86,33 @@ const hr = () => h('hr')
 async function endSession(path) {
   try { await call('POST', path) } catch {}
   token = ''
-  await chrome.storage.session.remove('token')
+  await chrome.storage.session.remove(['token', 'view'])
 }
 
 // ---- fill ----
 const say = (status, ok, msg) => { status.className = ok ? 'ok' : 'err'; status.textContent = msg }
 
-async function doFill(id, status) {
+async function fillHere(id, status) {
   try {
     const it = await call('GET', '/items/' + id)
-    const url = (it.data.urls || []).find((u) => u && u.trim())
-    if (url) {
-      const href = /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url
-      if (!/^https?:\/\//i.test(href)) throw new Error('Website is not an http(s) address.')
-      await chrome.runtime.sendMessage({ type: 'openfill', url: href, username: it.data.username || '', password: it.data.password || '' })
-      return window.close()
-    }
-    // no website saved: fill the current tab instead
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-    const [r] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: fill, args: [it.data.username || '', it.data.password || ''] })
+    const [t] = await chrome.tabs.query({ active: true, currentWindow: true })
+    const [r] = await chrome.scripting.executeScript({ target: { tabId: t.id }, func: fill, args: [it.data.username || '', it.data.password || ''] })
     say(status, !!r?.result, r?.result ? 'Filled.' : 'No login field found on this page.')
+  } catch (x) { say(status, false, x.message) }
+}
+
+// A tab opened by the extension has no activeTab grant, so filling it needs site access (asked once).
+const ALL_SITES = { origins: ['https://*/*', 'http://*/*'] }
+async function openFill(id, status) {
+  try {
+    if (!(await chrome.permissions.contains(ALL_SITES)) && !(await chrome.permissions.request(ALL_SITES))) throw new Error('Allow access to sites so saku can fill after opening.')
+    const it = await call('GET', '/items/' + id)
+    const url = (it.data.urls || []).find((u) => u && u.trim())
+    if (!url) return fillHere(id, status)
+    const href = /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : 'https://' + url
+    if (!/^https?:\/\//i.test(href)) throw new Error('Website is not an http(s) address.')
+    await chrome.runtime.sendMessage({ type: 'openfill', url: href, username: it.data.username || '', password: it.data.password || '' })
+    window.close()
   } catch (x) { say(status, false, x.message) }
 }
 
@@ -147,10 +157,11 @@ function kebab(it, status) {
   return wrap
 }
 
-function row(it, status) {
-  const a = h('div', { className: 'a' })
+function row(it, status, here) {
+  const a = h('div', { className: here ? 'a on' : 'a' })
   if (it.type === 'login') {
-    a.append(h('button', { className: 'primary', textContent: 'Open & Fill', onclick: () => doFill(it.id, status) }), kebab(it, status))
+    const now = here || !it.site // matches this page, or has no website to open
+    a.append(h('button', { className: 'primary', textContent: now ? 'Fill' : 'Open & Fill', onclick: () => (now ? fillHere : openFill)(it.id, status) }), kebab(it, status))
   }
   return h('div', { className: 'item' },
     h('div', { className: 't' }, ic(TYPE_ICON[it.type] || 'key-round')),
@@ -159,7 +170,6 @@ function row(it, status) {
 }
 
 // ---- tabs ----
-let tab = 'all'
 const NAV = [['fav', 'Favorites', 'star'], ['all', 'All items', 'layers'], ['gen', 'Generator', 'dices'], ['set', 'Settings', 'settings']]
 
 function renderNav() {
@@ -169,8 +179,9 @@ function renderNav() {
 
 function go(k) {
   tab = k
+  saveView()
   renderNav()
-  ;({ fav: listView, all: listView, gen: genView, set: settingsView }[k])().catch(failed)
+  return { fav: listView, all: listView, gen: genView, set: settingsView }[k]().catch(failed)
 }
 
 function failed(x) {
@@ -180,20 +191,31 @@ function failed(x) {
 
 async function listView() {
   const status = h('p', { role: 'status' })
-  const q = h('input', { placeholder: 'Search', type: 'search', style: 'flex:1' })
+  const q = h('input', { placeholder: 'Search', type: 'search', style: 'flex:1', value: view.q })
   const type = h('select', {}, h('option', { value: '' }, 'All categories'), ...Object.entries(TYPE_LABEL).map(([v, l]) => h('option', { value: v }, l)))
   const tags = [...new Set(items.flatMap((i) => i.tags || []))].sort((a, b) => a.localeCompare(b))
   const tg = h('select', {}, h('option', { value: '' }, 'All tags'), ...tags.map((t) => h('option', { value: t }, t)))
+  type.value = view.type
+  tg.value = view.tag
+  const hereBox = h('div', { className: 'list' })
   const list = h('div', { className: 'list' })
+  let hereIds = new Set()
+  try { // logins for any saved website of the open page
+    const [t] = await chrome.tabs.query({ active: true, currentWindow: true })
+    const u = new URL(t.url)
+    if (tab !== 'fav' && /^https?:$/.test(u.protocol)) hereIds = new Set((await call('GET', '/match?host=' + encodeURIComponent(u.hostname))).map((m) => m.id))
+  } catch (x) { if (x.status === 401) throw x }
   const render = () => {
     const s = q.value.trim().toLowerCase()
+    const here = !s && !type.value && !tg.value ? items.filter((i) => hereIds.has(i.id)) : []
+    hereBox.replaceChildren(...(here.length ? [h('h2', {}, 'On this site'), ...here.map((i) => row(i, status, true))] : []))
     const rows = items.filter((i) =>
-      (tab !== 'fav' || i.favorite) && (!type.value || i.type === type.value) && (!tg.value || (i.tags || []).includes(tg.value)) &&
+      !(here.length && hereIds.has(i.id)) && (tab !== 'fav' || i.favorite) && (!type.value || i.type === type.value) && (!tg.value || (i.tags || []).includes(tg.value)) &&
       (!s || `${i.name} ${i.sub || ''} ${(i.tags || []).join(' ')}`.toLowerCase().includes(s)))
-    list.replaceChildren(...(rows.length ? rows.map((i) => row(i, status)) : [h('p', { className: 'muted', textContent: items.length ? 'Nothing found.' : 'No items yet. Use + to add a login.' })]))
+    list.replaceChildren(...(rows.length ? rows.map((i) => row(i, status)) : here.length ? [] : [h('p', { className: 'muted', textContent: items.length ? 'Nothing found.' : 'No items yet. Use + to add a login.' })]))
   }
-  ;[q, type, tg].forEach((e) => (e.oninput = render))
-  show(h('div', { className: 'row' }, q), h('div', { className: 'row' }, type, tg), h('h2', {}, tab === 'fav' ? 'Favorites' : 'All items'), list, status)
+  ;[q, type, tg].forEach((e) => (e.oninput = () => { view.q = q.value; view.type = type.value; view.tag = tg.value; saveView(); render() }))
+  show(h('div', { className: 'row' }, q), h('div', { className: 'row' }, type, tg), hereBox, h('h2', {}, tab === 'fav' ? 'Favorites' : 'All items'), list, status)
   render()
 }
 
@@ -410,7 +432,7 @@ async function maybeAutofill() {
   const m = await call('GET', '/match?host=' + encodeURIComponent(host))
   if (m.length === 1) {
     const status = $('#app p[role=status]')
-    if (status) await doFill(m[0].id, status)
+    if (status) await fillHere(m[0].id, status)
   }
 }
 
@@ -425,9 +447,10 @@ async function start() {
     if (!st.unlocked) return authView()
     await loadItems()
     chrome_(true)
-    tab = 'all'
+    Object.assign(view, (await chrome.storage.session.get('view')).view)
+    tab = view.tab || 'all'
     renderNav()
-    await listView()
+    await go(tab)
     await maybeAutofill()
   } catch (x) {
     if (x.status === 401) return authView()
