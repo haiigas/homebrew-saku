@@ -161,7 +161,7 @@ function row(it, status, here) {
   const a = h('div', { className: here ? 'a on' : 'a' })
   if (it.type === 'login') {
     const now = here || !it.site // matches this page, or has no website to open
-    a.append(h('button', { className: 'primary', textContent: now ? 'Fill' : 'Open & Fill', onclick: () => (now ? fillHere : openFill)(it.id, status) }), kebab(it, status))
+    a.append(h('button', { className: 'primary', textContent: here ? 'Autofill' : now ? 'Fill' : 'Open & Fill', onclick: () => (now ? fillHere : openFill)(it.id, status) }), kebab(it, status))
   }
   return h('div', { className: 'item' },
     h('div', { className: 't' }, ic(TYPE_ICON[it.type] || 'key-round')),
