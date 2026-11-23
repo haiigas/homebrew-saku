@@ -46,11 +46,11 @@ export function ItemView({ id, onEdit, onChanged, onDeleted, onOpen, onTag, colo
     } else if (f.kind === 'custom') {
       for (const [i, c] of ((v ?? []) as { label: string; type: string; value: string }[]).entries()) {
         if (!c.label && !c.value) continue
-        row(f.section ?? 'Custom fields', c.type === 'password' ? <SecretRow key={k + i} label={c.label || 'Field'} value={c.value} /> : c.type === 'totp' ? <TotpRow key={k + i} label={c.label || '2FA'} secret={c.value} /> : <Row key={k + i} label={c.label || 'Field'} actions={<CopyBtn value={c.value} label={c.label || 'Field'} />}>{c.value}</Row>)
+        row(f.section ?? 'Custom fields', c.type === 'password' ? <SecretRow key={k + i} label={c.label || 'Field'} value={c.value} /> : c.type === 'totp' ? <TotpRow key={k + i} label={c.label || '2FA Authentication'} secret={c.value} /> : <Row key={k + i} label={c.label || 'Field'} actions={<CopyBtn value={c.value} label={c.label || 'Field'} />}>{c.value}</Row>)
       }
     } else if (typeof v === 'string' && v) {
       if (f.kind === 'secret') row(f.section, <SecretRow key={k} label={f.label} value={v} />)
-      else if (f.kind === 'totp') row(f.section, <TotpRow key={k} label={f.label} secret={v} />)
+      else if (f.kind === 'totp') row(f.section, <TotpRow key={k} label="2FA Authentication" secret={v} />)
       else if (f.kind === 'area') row(f.section, <Row key={k} label={lab}><span className="whitespace-pre-wrap">{v}</span></Row>)
       else {
         const href = f.kind === 'link' ? toHref(v) : null
