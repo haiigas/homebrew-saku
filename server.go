@@ -18,6 +18,22 @@ var webFS embed.FS
 
 const cookieName = "saku_session"
 
+// extOrigin is the browser extension in ./extension (ID is fixed by "key" in its manifest).
+const extOrigin = "chrome-extension://npfiijknlecpfdggffkejocdebbodipl"
+
+// hostMatch: saved URL (or bare domain) covers host, including subdomains.
+func hostMatch(saved, host string) bool {
+	if !strings.Contains(saved, "://") {
+		saved = "https://" + saved
+	}
+	u, err := url.Parse(strings.TrimSpace(saved))
+	if err != nil {
+		return false
+	}
+	h := strings.ToLower(u.Hostname())
+	return h != "" && (h == host || strings.HasSuffix(host, "."+h))
+}
+
 type Server struct {
 	v     *Vault
 	hosts map[string]bool
@@ -37,10 +53,10 @@ func (s *Server) handler() http.Handler {
 	api := func(pattern string, auth bool, f func(w http.ResponseWriter, r *http.Request)) {
 		mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 			if auth {
-				c, err := r.Cookie(cookieName)
+				tok := token(r)
 				// totp polling and status must not keep the vault awake
 				touch := r.URL.Path != "/api/totp"
-				if err != nil || !s.v.Unlocked() || !s.v.ValidSession(c.Value, touch) {
+				if tok == "" || !s.v.Unlocked() || !s.v.ValidSession(tok, touch) {
 					fail(w, 401, "locked")
 					return
 				}
@@ -51,8 +67,8 @@ func (s *Server) handler() http.Handler {
 
 	mux.HandleFunc("GET /api/status", func(w http.ResponseWriter, r *http.Request) {
 		ok := false
-		if c, err := r.Cookie(cookieName); err == nil {
-			ok = s.v.Unlocked() && s.v.ValidSession(c.Value, false)
+		if t := token(r); t != "" {
+			ok = s.v.Unlocked() && s.v.ValidSession(t, false)
 		}
 		reply(w, map[string]any{"initialized": s.v.Initialized(), "unlocked": ok, "autolock": s.v.Autolock()})
 	})
@@ -66,7 +82,7 @@ func (s *Server) handler() http.Handler {
 			failErr(w, err)
 			return
 		}
-		s.login(w)
+		s.login(w, r)
 		reply(w, map[string]any{"recovery": rec})
 	})
 	mux.HandleFunc("POST /api/unlock", func(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +94,7 @@ func (s *Server) handler() http.Handler {
 			failErr(w, err)
 			return
 		}
-		s.login(w)
+		s.login(w, r)
 		reply(w, map[string]any{})
 	})
 	mux.HandleFunc("POST /api/recover", func(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +106,7 @@ func (s *Server) handler() http.Handler {
 			failErr(w, err)
 			return
 		}
-		s.login(w)
+		s.login(w, r)
 		reply(w, map[string]any{})
 	})
 	api("POST /api/lock", false, func(w http.ResponseWriter, r *http.Request) {
@@ -152,6 +168,48 @@ func (s *Server) handler() http.Handler {
 		reply(w, map[string]any{"code": code, "remaining": rem})
 	})
 
+	// match: logins for a host (?host=) or by name/username (?q=); slim rows for the extension.
+	api("GET /api/match", true, func(w http.ResponseWriter, r *http.Request) {
+		host := strings.ToLower(r.URL.Query().Get("host"))
+		q := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
+		all, err := s.v.All()
+		if err != nil {
+			failErr(w, err)
+			return
+		}
+		type row struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+			Sub  string `json:"sub"`
+			Totp bool   `json:"totp"`
+		}
+		out := []row{}
+		for _, it := range all {
+			var d struct {
+				Urls     []string
+				Username string
+				Totp     string
+			}
+			if it.Type != "login" || json.Unmarshal(it.Data, &d) != nil {
+				continue
+			}
+			ok := false
+			if q != "" {
+				ok = strings.Contains(strings.ToLower(it.Name), q) || strings.Contains(strings.ToLower(d.Username), q)
+			} else {
+				for _, u := range d.Urls {
+					if host != "" && hostMatch(u, host) {
+						ok = true
+						break
+					}
+				}
+			}
+			if ok {
+				out = append(out, row{it.ID, it.Name, d.Username, d.Totp != ""})
+			}
+		}
+		reply(w, out)
+	})
 	api("POST /api/ping", true, func(w http.ResponseWriter, r *http.Request) { reply(w, map[string]any{}) })
 	api("POST /api/autolock", true, func(w http.ResponseWriter, r *http.Request) {
 		var in struct{ Seconds int }
@@ -237,7 +295,7 @@ func (s *Server) guard(next http.Handler) http.Handler {
 			return
 		}
 		if o := r.Header.Get("Origin"); o != "" {
-			if u, err := url.Parse(o); err != nil || !strings.EqualFold(u.Host, r.Host) {
+			if u, err := url.Parse(o); o != extOrigin && (err != nil || !strings.EqualFold(u.Host, r.Host)) {
 				http.Error(w, "cross-origin request blocked", 403)
 				return
 			}
@@ -258,9 +316,24 @@ func (s *Server) guard(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) login(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: s.v.NewSession(), Path: "/",
+func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	t := s.v.NewSession()
+	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: t, Path: "/",
 		HttpOnly: true, SameSite: http.SameSiteStrictMode, Secure: s.tls})
+	if r.Header.Get("Origin") == extOrigin {
+		w.Header().Set("X-Saku-Token", t) // extension keeps it in memory, no cookie jar
+	}
+}
+
+// token: session cookie (web UI) or Bearer (extension). Bearer is not ambient, so no CSRF risk.
+func token(r *http.Request) string {
+	if a, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
+		return a
+	}
+	if c, err := r.Cookie(cookieName); err == nil {
+		return c.Value
+	}
+	return ""
 }
 
 func reply(w http.ResponseWriter, v any) {

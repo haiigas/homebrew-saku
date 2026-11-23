@@ -103,3 +103,20 @@ func indexOf(h, n string) int {
 	}
 	return -1
 }
+
+func TestHostMatch(t *testing.T) {
+	for _, c := range []struct {
+		saved, host string
+		want        bool
+	}{
+		{"https://github.com/login", "github.com", true},
+		{"github.com", "gist.github.com", true},
+		{"https://gist.github.com", "github.com", false},
+		{"https://evilgithub.com", "github.com", false},
+		{"https://github.com.evil.io", "github.com", false},
+	} {
+		if hostMatch(c.saved, c.host) != c.want {
+			t.Errorf("hostMatch(%q,%q) != %v", c.saved, c.host, c.want)
+		}
+	}
+}

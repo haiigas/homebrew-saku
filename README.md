@@ -26,6 +26,18 @@ First visit: choose a master password and save the **recovery key** shown once.
 Every item has a name and multiple tags. UI has favorites, duplicate, search, tag filters,
 password generator, click-to-copy (clipboard cleared after 30s), and auto-lock (5 / 15 / 30 min / never).
 
+## Chrome extension
+
+Fills logins and copies 2FA codes from the toolbar popup.
+
+1. Open `chrome://extensions`, turn on **Developer mode**.
+2. **Load unpacked** and pick `$(brew --prefix)/share/saku/extension` (or `extension/` in this repo).
+3. Click the icon, enter the server URL (default `https://localhost:7878`; use the same address you open in the browser), allow access, and unlock.
+
+The popup lists logins whose saved website matches the current tab (subdomains included), and has a search box.
+Fill only runs when you click it, on the active tab. The session token stays in memory (`storage.session`) and is dropped when the browser closes.
+For HTTPS the certificate must be trusted, so run `mkcert -install` once (a self-signed cert is rejected by Chrome extensions).
+
 ## Security
 
 - Master password → Argon2id → key that wraps a random 256-bit data key.

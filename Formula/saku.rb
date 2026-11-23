@@ -10,6 +10,7 @@ class Saku < Formula
 
   def install
     system "go", "build", *std_go_args
+    pkgshare.install "extension"
   end
 
   service do
@@ -23,6 +24,8 @@ class Saku < Formula
     <<~EOS
       Open https://localhost:7878 (run `saku serve` or `brew services start saku`).
       For a trusted HTTPS cert, run once: mkcert -install
+      Chrome extension: chrome://extensions > Developer mode > Load unpacked >
+        #{opt_pkgshare}/extension
       Your encrypted vault lives in ~/.config/saku/vault.db
       Remove all of it with:
         brew uninstall --zap saku
