@@ -1,0 +1,5 @@
+*.log
+.DS_Store
+ui/node_modules
+/saku
+*.tar.gz
