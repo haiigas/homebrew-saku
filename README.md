@@ -55,15 +55,6 @@ saku backup <file>     copy the encrypted vault
 saku doctor            check paths and dependencies
 ```
 
-## Develop
-
-```
-cd ui && pnpm install && pnpm build   # writes web/dist (committed)
-go test ./... && go build
-```
-
-The extension in `extension/` is plain JavaScript with no build step.
-
 ## Uninstall
 
 ```
