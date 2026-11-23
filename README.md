@@ -27,34 +27,13 @@ Run in the foreground instead of as a service: `saku serve`.
 
 Every item has a name and any number of tags.
 
-## Web UI
-
-- Favorites, duplicate, search, filter by type or tag.
-- Tags can be renamed and given a color (hover a tag in the sidebar, then the `⋮` menu). Renaming to an existing tag merges them.
-- Site favicons for items with a website. The local server fetches them, not a third party. It refuses private and LAN addresses. Turn off with `favicons = false` in the config.
-- Password generator (also next to the password fields of logins and routers).
-- Click to copy. The clipboard is cleared after 30 seconds.
-- Auto-lock after 5 / 15 / 30 minutes, or never.
-- Import: saku export (plain or encrypted), Bitwarden JSON, CSV. Export is in Settings.
-
 ## Chrome extension
 
 1. Open `chrome://extensions` and turn on **Developer mode**.
-2. **Load unpacked** and pick `$(brew --prefix)/share/saku/extension` (or `extension/` in this repo).
-   In the file picker, press Cmd+Shift+G to type the path.
-3. Click the icon, allow access to your server, and unlock. The default server is `https://localhost:7878`. Use the same address you open in the browser.
-
-The popup has four tabs: **Favorites**, **All items**, **Generator**, **Settings**.
-
-- Search, plus a category filter and a tag filter.
-- `+` adds an item. Pick a type and fill in the same fields as the web UI.
-- Hover a login: **Open & Fill** opens its first website and fills the form. The `⋮` menu copies the username, password or TOTP code.
-- Settings: auto-lock, auto-fill (off by default; fills when exactly one login matches the page), change server, lock, sign out.
-  **Lock** locks the whole vault. **Sign out** only ends this extension's session.
-
-Nothing is filled unless you click, except with the auto-fill setting.
-The session token lives in `storage.session` and is dropped when the browser closes.
-Chrome rejects self-signed certificates for extensions. `saku serve` runs `mkcert -install` for you (it may ask for your password once). If that failed, run `mkcert -install` yourself, then `brew services restart saku`.
+2. **Load unpacked** and pick `$(brew --prefix)/share/saku/extension`
+   (in the file picker, press Cmd+Shift+G to type the path).
+3. Click the icon, allow access to your server, and unlock.
+   The default server is `https://localhost:7878`. Use the same address you open in the browser.
 
 ## Security
 
