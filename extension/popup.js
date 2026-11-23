@@ -197,7 +197,7 @@ async function listView() {
   const tg = h('select', {}, h('option', { value: '' }, 'All tags'), ...tags.map((t) => h('option', { value: t }, t)))
   type.value = view.type
   tg.value = view.tag
-  const hereBox = h('div', { className: 'list' })
+  const hereBox = h('div', { className: 'list here' })
   const list = h('div', { className: 'list' })
   let hereIds = new Set()
   try { // logins for any saved website of the open page
