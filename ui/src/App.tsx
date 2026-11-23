@@ -6,6 +6,7 @@ import { TYPE_KEYS, TYPES } from '@/lib/schema'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { NativeSelect } from '@/components/ui/native-select'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Auth } from '@/components/auth'
@@ -127,7 +128,7 @@ function Vault({ st, setSt, refresh }: { st: Status; setSt: (s: Status) => void;
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button size="icon" aria-label="New item" />}><Plus /></DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-auto min-w-44 max-w-[calc(100vw-1.5rem)] whitespace-nowrap">
                 {TYPE_KEYS.map((t) => { const I = TYPES[t].icon; return <DropdownMenuItem key={t} onClick={() => setPane({ mode: 'new', t })}><I /> {TYPES[t].label}</DropdownMenuItem> })}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -136,12 +137,12 @@ function Vault({ st, setSt, refresh }: { st: Status; setSt: (s: Status) => void;
             <Button variant="outline" size="sm" onClick={() => setGen(true)}><Dices /></Button>
             <Button variant="outline" size="sm" onClick={() => setCfg(true)}><Cog /></Button>
             <Button variant="outline" size="sm" onClick={lock}><Lock /></Button>
-            <select aria-label="Filter" className="h-7 min-w-0 flex-1 rounded-lg border bg-transparent px-2 text-sm" value={JSON.stringify(filter)} onChange={(e) => setFilter(JSON.parse(e.target.value))}>
+            <NativeSelect aria-label="Filter" className="min-w-0 flex-1" value={JSON.stringify(filter)} onChange={(e) => setFilter(JSON.parse(e.target.value))}>
               <option value={JSON.stringify({ kind: 'all' })}>All items</option>
               <option value={JSON.stringify({ kind: 'fav' })}>Favorites</option>
               {TYPE_KEYS.map((t) => <option key={t} value={JSON.stringify({ kind: 'type', t })}>{TYPES[t].plural}</option>)}
               {allTags.map((t) => <option key={t} value={JSON.stringify({ kind: 'tag', tag: t })}>#{t}</option>)}
-            </select>
+            </NativeSelect>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">

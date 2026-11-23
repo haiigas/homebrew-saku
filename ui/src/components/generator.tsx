@@ -8,11 +8,11 @@ import { Label } from '@/components/ui/label'
 import { CopyBtn } from './secret'
 
 const OPTS: [keyof GenOpts, string][] = [
-  ['upper', 'A–Z'],
-  ['lower', 'a–z'],
-  ['digits', '0–9'],
-  ['symbols', '!@#$'],
-  ['ambiguous', 'Ambiguous (O0Il1)'],
+  ['upper', 'Uppercase letters (A-Z)'],
+  ['lower', 'Lowercase letters (a-z)'],
+  ['digits', 'Numbers (0-9)'],
+  ['symbols', 'Symbols (!@#$%)'],
+  ['ambiguous', 'Ambiguous characters (O, 0, I, l, 1)'],
 ]
 
 export function Generator({ open, onClose, onUse }: { open: boolean; onClose: () => void; onUse?: (v: string) => void }) {
@@ -62,7 +62,7 @@ export function Generator({ open, onClose, onUse }: { open: boolean; onClose: ()
           </div>
           <input id="gen-len" type="range" min={8} max={64} value={o.length} onChange={(e) => set({ length: +e.target.value })} className="w-full accent-neutral-900" />
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-2.5">
           {OPTS.map(([k, label]) => (
             <label key={k} className="flex items-center gap-2 text-sm">
               <Checkbox checked={!!o[k]} onCheckedChange={(v) => set({ [k]: !!v } as Partial<GenOpts>)} />
