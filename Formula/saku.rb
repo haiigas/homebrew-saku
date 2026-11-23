@@ -2,7 +2,7 @@ class Saku < Formula
   desc "Local encrypted password manager with a web UI"
   homepage "https://github.com/haiigas/homebrew-saku"
   url "https://github.com/haiigas/homebrew-saku/archive/refs/tags/v0.1.7.tar.gz"
-  sha256 "4fd9654658476db73a3c31cd9f74941567995b3f206bfd1dea67f078032d7195"
+  sha256 "4625304120ee1ae1662665be98b45f328dabb30acb915d4a49053f80c96c02b5"
   license "MIT"
 
   depends_on "go" => :build
